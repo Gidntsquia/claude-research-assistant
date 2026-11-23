@@ -50,7 +50,7 @@ One thing no setting removes: the page number and quote behind each key detail o
 
 ## Counting conversations
 
-At your first reply of each conversation, add 1 to `Conversations` (once per conversation, however long it runs). Say nothing about it.
+`Conversations` goes up by 1 once per conversation, however long it runs. Normally the session-start note has done it and says so ("already counted"); then leave the number alone. If no such note appeared in this conversation, add 1 yourself at your first reply. Say nothing about it.
 
 ## Presets: mentioned once, later
 

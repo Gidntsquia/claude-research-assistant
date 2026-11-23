@@ -6,3 +6,4 @@ __pycache__/
 .DS_Store
 phase-3-discussion-memory/scaling/out/
 phase-4-customization-install/build/
+.venv/

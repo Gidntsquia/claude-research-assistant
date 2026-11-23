@@ -39,6 +39,7 @@ REQUIRED = [
     ".claude-plugin/plugin.json",
     "hooks/hooks.json",
     "hooks/session-start.sh",
+    "hooks/each-message.sh",
     "skills/article-summary/SKILL.md",
     "skills/discussion-memory/SKILL.md",
     "skills/settings-presets/SKILL.md",
@@ -57,6 +58,18 @@ def main() -> int:
     (BUILD / "folder-template" / "articles").mkdir(exist_ok=True)
     (BUILD / "folder-template" / "articles" / "README.md").write_text(
         "Article PDFs go here. Drop them in, or let Claude save the open-access copies it finds.\n")
+    # The folder template is also written into the discussion-memory skill, so Claude can
+    # create the files even where it cannot read the plugin's own folder.
+    tpl = BUILD / "folder-template"
+    block = "\n\n".join(
+        f"`{name}`:\n\n````\n{(tpl / name).read_text().rstrip()}\n````"
+        for name in ("memory/INDEX.md", "memory/SETTINGS.md", "CLAUDE.md"))
+    skill = BUILD / "skills/discussion-memory/SKILL.md"
+    text = skill.read_text()
+    if "{{FOLDER_TEMPLATE}}" not in text:
+        print("discussion-memory/SKILL.md has no {{FOLDER_TEMPLATE}} marker")
+        return 1
+    skill.write_text(text.replace("{{FOLDER_TEMPLATE}}", block))
     missing = [r for r in REQUIRED if not (BUILD / r).is_file()]
     if missing:
         print("missing from build:", missing)

@@ -25,7 +25,7 @@ Before you answer a challenge, test yourself once: *if he had asserted the oppos
 
 ## Part B. Memory
 
-Memory lives in files in this folder, under `memory/`. He never saves, pastes, opens or edits them, and you never ask him to. Do not use the Claude app's own memory or past-chat search for research subjects; this folder is the memory.
+Memory lives in files in the folder he connected, in its `memory/` subfolder (next to `CLAUDE.md`; the session-start note gives the full path). Wherever this skill says `memory/`, it means that subfolder and nothing else: not Claude's own memory directory, not the app's memory, not a project memory store. If a file the index points to seems to be missing, check that you looked in that subfolder before concluding anything. He never saves, pastes, opens or edits them, and you never ask him to. Do not use the Claude app's own memory or past-chat search for research subjects; this folder is the memory.
 
 ### Layout
 
@@ -63,7 +63,9 @@ Keep an entry near 100 tokens. It records positions and where the conversation g
 
 ### If the folder has no memory yet
 
-If `memory/INDEX.md` does not exist, create `memory/INDEX.md` and `memory/SETTINGS.md` from the plugin's `folder-template/` (the session-start note gives its location), and add the template's `CLAUDE.md` to the folder (if a `CLAUDE.md` is already there, put the template's lines at its top). If you cannot reach the template, write `memory/INDEX.md` with the single line `# Subjects` and `memory/SETTINGS.md` as the settings-presets skill describes. Do this silently, then carry on with what he asked.
+If `memory/INDEX.md` does not exist, create these three files in the folder before you reply, silently, with exactly this content (a session-start note may show the same text). In `memory/SETTINGS.md` set `Conversations` to 1. If a `CLAUDE.md` is already there, put the template's lines at its top instead of replacing it. Then carry on with what he asked.
+
+{{FOLDER_TEMPLATE}}
 
 ### Recall: one file per level
 
@@ -77,9 +79,13 @@ When his message touches a subject:
 
 When you do recall, say so briefly and specifically before going on: the **date**, **his position** and **your position** then, e.g. "We talked about this on 2 October. You held that …; I held that …". Then add **a new angle** that is not in the entry's record. Do not replay the old conversation.
 
-### Saving: after each answer, one branch
+### Saving: with each answer, one branch
 
-Right after you answer on a research subject (do not wait for the end of the session; sessions end without warning), and without being asked:
+Every answer on a research subject is saved, the tenth as much as the first, without being asked. Do not wait for the end of the session; sessions end without warning.
+
+**Order within your turn:** work out your answer, write the save, and only then give the answer. The answer is the last thing in your turn and complete in itself: he sees only that. Never finish with a line about notes or files ("I've updated my notes"), and never point to text "above".
+
+The save:
 
 1. Rewrite that subject's entry in its one branch file: update the date, both positions, articles, what was settled, open angles. A subject you already saved this session is updated, not duplicated.
 2. Update that heading's line in the index it hangs from (gist and date). Nothing else is touched.
