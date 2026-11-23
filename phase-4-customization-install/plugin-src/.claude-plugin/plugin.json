@@ -1,0 +1,6 @@
+{
+  "name": "research-assistant",
+  "version": "1.0.0",
+  "description": "Article summaries with a page number and quote behind every key detail, discussion that holds its ground, and a memory of past subjects that stays the same size however many conversations you have.",
+  "author": { "name": "Jaxon" }
+}
