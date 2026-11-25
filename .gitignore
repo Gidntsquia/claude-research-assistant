@@ -4,6 +4,6 @@ __pycache__/
 .pytest_cache/
 *.pyc
 .DS_Store
-phase-3-discussion-memory/scaling/out/
-phase-4-customization-install/build/
 .venv/
+build/
+tests/tools/out/

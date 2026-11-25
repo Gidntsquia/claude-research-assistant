@@ -5,10 +5,10 @@
 # ///
 """Score the plain-Claude baseline runs and write RESULTS.md.
 
-    uv run baseline-runs/score_baseline.py
+    uv run tests/tools/score_baseline.py
 
 For each <name>-run<k>.reply.md it works out what the run read (from the transcript),
-runs tools/check_summary.py with the matching --source, saves the checker's printout as
+runs tests/tools/check_summary.py with the matching --source, saves the checker's printout as
 <name>-run<k>.check.txt and fills one row of the table. Nothing is typed in by hand.
 """
 from __future__ import annotations
@@ -22,9 +22,10 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-HERE = pathlib.Path(__file__).parent
-ROOT = HERE.parent
-sys.path.insert(0, str(ROOT / "tools"))
+TOOLS = pathlib.Path(__file__).resolve().parent
+ROOT = TOOLS.parents[1]                          # the repo
+HERE = ROOT / "tests" / "runs" / "baseline"      # this run set
+sys.path.insert(0, str(TOOLS))
 import check_summary as cs  # noqa: E402
 
 ARTICLES = {
@@ -92,14 +93,14 @@ def score(name: str, k: int) -> dict:
         return {"name": name, "k": k, "run": False, "why": why}
     src, evidence = source_read(jsonl)
     mode = "pdf" if src == "PDF" else "web"
-    argv = [str(reply), "--pdf", str(ROOT / "test-set" / f"{name}.pdf"),
-            "--html", str(ROOT / "test-set" / f"{name}.html"), "--source", mode]
+    argv = [str(reply), "--pdf", str(ROOT / "tests" / "test-set" / f"{name}.pdf"),
+            "--html", str(ROOT / "tests" / "test-set" / f"{name}.html"), "--source", mode]
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         cs.main(argv)
     out = buf.getvalue().replace(str(ROOT) + "/", "")
-    cmd = (f"uv run tools/check_summary.py baseline-runs/{reply.name} --pdf test-set/{name}.pdf "
-           f"--html test-set/{name}.html --source {mode}")
+    cmd = (f"uv run tests/tools/check_summary.py tests/runs/baseline/{reply.name} --pdf tests/test-set/{name}.pdf "
+           f"--html tests/test-set/{name}.html --source {mode}")
     pathlib.Path(f"{base}.check.txt").write_text(
         f"source read: {src}  <- {evidence}\n$ {cmd}\n{out}", encoding="utf-8")
     rules = {m.group(2): m.group(1) == "pass" for m in re.finditer(r"^(pass|FAIL)\s+([a-z-]+)", out, re.M)}
@@ -113,10 +114,10 @@ def main() -> int:
     done = [r for r in rows if r["run"]]
     now = datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d, %-I:%M %p ET")
     L = ["# Baseline: plain Claude, no plugin", "",
-         f"Scored {now} by `uv run baseline-runs/score_baseline.py`. {len(done)} of 12 runs scored.", "",
+         f"Scored {now} by `uv run tests/tools/score_baseline.py`. {len(done)} of 12 runs scored.", "",
          "Each run: one headless Claude session (Sonnet), no plugin, a fresh empty folder, the prompt exactly "
          "`Summarize this article for me. https://doi.org/<doi>`. The reply is what Claude wrote after its last tool call. "
-         "The checker is `tools/check_summary.py`; the rules are the short format phase 2 will build "
+         "The checker is `tests/tools/check_summary.py`; the rules are the short format phase 2 will build "
          "(2–3 sentence opening, 5–8 details of at most 25 words, a pointer on each, no quotes, at most 4 headings from the article, no \"not stated\"). "
          "A baseline that misses is a valid result: it is the gap the plugin has to close.", "",
          "| Run | Source read | " + " | ".join(label for _, label in COLUMNS) + " | Why |",
@@ -168,10 +169,10 @@ def main() -> int:
     if costs:
         L.append(f"- Cost of the {len(costs)} runs: ${sum(costs):.2f} in all, ${min(costs):.2f} to ${max(costs):.2f} each.")
     if missing:
-        L += ["", f"{missing} rows read \"not run\". Start `baseline-runs/run_baseline.sh` again (it skips finished runs), then this script."]
+        L += ["", f"{missing} rows read \"not run\". Start `tests/tools/run_baseline.sh` again (it skips finished runs), then this script."]
     L += ["", "## Reproduce one row", "", "```",
-          "uv run tools/check_summary.py baseline-runs/caprolace-run1.reply.md --pdf test-set/caprolace.pdf --html test-set/caprolace.html --source web",
-          "```", "", "Run it from `phase-1-baseline/`. Use `--source pdf` for a row whose source read is PDF. The exact command for each row is the second line of its checker output.", ""]
+          "uv run tests/tools/check_summary.py tests/runs/baseline/caprolace-run1.reply.md --pdf tests/test-set/caprolace.pdf --html tests/test-set/caprolace.html --source web",
+          "```", "", "Run it from the repo root. Use `--source pdf` for a row whose source read is PDF. The exact command for each row is the second line of its checker output.", ""]
     (HERE / "RESULTS.md").write_text("\n".join(L), encoding="utf-8")
     print("\n".join(L[6:6 + 2 + 12]))
     print(f"\nwrote {HERE / 'RESULTS.md'}")

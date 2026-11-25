@@ -454,7 +454,7 @@ def report(results: list[dict], fails: list[str]) -> str:
     lines = [
         "# Scaling report: subject-tree memory",
         "",
-        "Produced by `uv run phase-3-discussion-memory/scaling/memory_tree.py scale`. n = number of chats.",
+        "Produced by `uv run tests/tools/memory_tree.py scale`. n = number of chats.",
         "Each synthetic chat loads the root index, recalls its subject if it has come up before, and saves.",
         "Tokens = characters / 4, rounded up. Numbers are the worst case seen over all n chats, measured on the files written to disk.",
         "",

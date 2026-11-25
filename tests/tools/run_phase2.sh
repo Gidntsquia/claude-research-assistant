@@ -1,7 +1,7 @@
 #!/bin/sh
 # One phase-2 test run = one headless Claude launch (Sonnet, $4 and 60-turn caps).
 #
-#   tools/run_phase2.sh RUN [--trial]
+#   tests/tools/run_phase2.sh RUN [--trial]
 #
 # RUN is <kind>-run<k>:
 #   caprolace-run1..3, leprosy-adna-run1..3         prompt: https://doi.org/<doi>, then "show quotes"
@@ -15,18 +15,19 @@
 # The workspace is a fresh scratch folder outside the repo holding folder-template/ and any PDF;
 # it is deleted afterwards. A run that already has a result is skipped, so a list of runs can be
 # started again after a refused launch. Scored runs need the skill committed and the zips built
-# from it; --trial skips that check and writes to test-runs/trials/.
-# Afterwards: uv run tools/score_phase2.py
+# from it; --trial skips that check and writes to runs/summary/trials/.
+# Afterwards: uv run tests/tools/score_phase2.py
 set -u
-HERE="$(cd "$(dirname "$0")/.." && pwd)"
-TESTSET="$HERE/../phase-1-baseline/test-set"
+HERE="$(cd "$(dirname "$0")/.." && pwd)"                  # tests/
+REPO="$(cd "$HERE/.." && pwd)"
+TESTSET="$HERE/test-set"
 RUN="${1:?usage: run_phase2.sh RUN [--trial]}"
 TRIAL="${2:-}"
 KIND="${RUN%-run*}"
-OUTDIR="$HERE/test-runs"
-[ "$TRIAL" = "--trial" ] && OUTDIR="$HERE/test-runs/trials"
+OUTDIR="$HERE/runs/summary"
+[ "$TRIAL" = "--trial" ] && OUTDIR="$HERE/runs/summary/trials"
 OUT="$OUTDIR/$RUN"
-ZIP="$HERE/dist/phase-2-plugin.zip"
+ZIP="$REPO/dist/research-assistant-plugin.zip"
 PDFS=""; SECOND="show quotes"
 case "$KIND" in
   caprolace) PROMPT="https://doi.org/10.1371/journal.pone.0224435" ;;
@@ -36,7 +37,7 @@ case "$KIND" in
   caprolace-scanned) PDFS="caprolace-scanned.pdf"; PROMPT="Summarize caprolace-scanned.pdf" ;;
   paywalled) PROMPT="https://doi.org/10.1179/pan.2005.033"; SECOND="" ;;
   two-articles) PDFS="caa-theory.pdf south-america.pdf"; PROMPT="Summarize these two articles"; SECOND="" ;;
-  nohooks-caprolace) PROMPT="https://doi.org/10.1371/journal.pone.0224435"; ZIP="$HERE/dist/phase-2-plugin-nohooks.zip" ;;
+  nohooks-caprolace) PROMPT="https://doi.org/10.1371/journal.pone.0224435"; ZIP="$REPO/dist/phase-2-plugin-nohooks.zip" ;;
   *) echo "unknown run $RUN" >&2; exit 2 ;;
 esac
 mkdir -p "$OUTDIR"
@@ -44,14 +45,14 @@ if [ -s "$OUT.jsonl" ] && grep -q '"type": *"result"' "$OUT.jsonl"; then
   echo "skip $RUN: already has a result"; exit 0
 fi
 # The zip must hold the skill as it is on disk, and for a scored run the skill must be committed.
-if ! unzip -p "$ZIP" skills/article-summary/SKILL.md | cmp -s - "$HERE/skill/article-summary/SKILL.md"; then
-  echo "the zip does not match skill/article-summary/SKILL.md: run ./build.sh first" >&2; exit 2
+if ! unzip -p "$ZIP" skills/article-summary/SKILL.md | cmp -s - "$REPO/plugin/skills/article-summary/SKILL.md"; then
+  echo "the zip does not match skill/article-summary/SKILL.md: run uv run build_plugin.py first" >&2; exit 2
 fi
-if [ "$TRIAL" != "--trial" ] && ! git -C "$HERE" diff --quiet HEAD -- skill plugin-src folder-template dist; then
-  echo "skill, plugin-src, folder-template or dist has uncommitted changes: commit before a scored run" >&2; exit 2
+if [ "$TRIAL" != "--trial" ] && ! git -C "$REPO" diff --quiet HEAD -- plugin dist; then
+  echo "plugin or dist has uncommitted changes: commit before a scored run" >&2; exit 2
 fi
-COMMIT="$(git -C "$HERE" log -1 --format=%h -- skill plugin-src folder-template)"
-BLOB="$(git -C "$HERE" hash-object skill/article-summary/SKILL.md | cut -c1-10)"
+COMMIT="$(git -C "$REPO" log -1 --format=%h -- plugin dist)"
+BLOB="$(git -C "$REPO" hash-object plugin/skills/article-summary/SKILL.md | cut -c1-10)"
 # Cowork's sandbox has Python with PDF libraries; this Mac's system Python has none.
 VENV="$HERE/tools/.venv"
 if [ ! -x "$VENV/bin/python3" ]; then
@@ -59,7 +60,7 @@ if [ ! -x "$VENV/bin/python3" ]; then
 fi
 PATH="$VENV/bin:$PATH"; export PATH
 WS="$(mktemp -d "${TMPDIR:-/tmp}/ra-phase2.XXXXXX")"
-cp -R "$HERE/folder-template/." "$WS/"
+cp -R "$REPO/plugin/folder-template/." "$WS/"
 for f in $PDFS; do cp "$TESTSET/$f" "$WS/"; done
 rm -f "$OUT.notrun"
 STARTED="$(TZ=America/New_York date '+%Y-%m-%d %-I:%M %p ET')"

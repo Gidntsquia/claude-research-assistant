@@ -1,4 +1,4 @@
-"""uv run --with pytest pytest phase-3-discussion-memory/scaling"""
+"""uv run --with pytest pytest tests/tools"""
 import pathlib
 import sys
 

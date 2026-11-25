@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render one run's two replies as a page to judge by eye.
 
-    python3 tools/render_html.py test-runs/caprolace-run1      # writes test-runs/caprolace-run1.html
+    python3 tests/tools/render_html.py tests/runs/summary/caprolace-run1      # writes tests/runs/summary/caprolace-run1.html
 
 Left to right (or top to bottom on a narrow screen): the reply to the prompt, then the reply to
 "show quotes". Only the Markdown the summary format uses is handled: # headings, - lists,

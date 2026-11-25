@@ -1,15 +1,15 @@
 #!/bin/sh
 # Plain-Claude baseline: each of the four test DOIs summarized 3 times with no plugin.
 #
-#   baseline-runs/run_baseline.sh [NAME ...]      # default: all four articles
+#   tests/tools/run_baseline.sh [NAME ...]        # default: all four articles
 #
-# 12 headless launches in all (Sonnet, $4 and 60-turn caps, set in tools/run_session.sh).
+# 12 headless launches in all (Sonnet, $4 and 60-turn caps, set in tests/tools/run_session.sh).
 # A run that already has a result is skipped, so the script can be started again after a
 # refused launch or a stop. Each run gets a fresh scratch folder outside the repo.
-# Afterwards: uv run baseline-runs/score_baseline.py
+# Afterwards: uv run tests/tools/score_baseline.py
 set -u
-HERE="$(cd "$(dirname "$0")" && pwd)"
-TOOLS="$HERE/../tools"
+TOOLS="$(cd "$(dirname "$0")" && pwd)"
+RUNS="$TOOLS/../runs/baseline"
 doi_of() {
   case "$1" in
     caprolace) echo "10.1371/journal.pone.0224435" ;;
@@ -23,7 +23,7 @@ doi_of() {
 for name in "$@"; do
   doi="$(doi_of "$name")" || exit 2
   for k in 1 2 3; do
-    out="$HERE/$name-run$k"
+    out="$RUNS/$name-run$k"
     if [ -s "$out.jsonl" ] && grep -q '"type":"result"' "$out.jsonl"; then
       echo "skip $name run $k: already has a result"; continue
     fi

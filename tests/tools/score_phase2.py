@@ -3,14 +3,14 @@
 # requires-python = ">=3.10"
 # dependencies = ["pymupdf"]
 # ///
-"""Score the phase-2 runs with phase 1's checker and write test-runs/RESULTS.md.
+"""Score the phase-2 runs with the checker and write tests/runs/summary/RESULTS.md.
 
-    uv run tools/score_phase2.py                 # score test-runs/
-    uv run tools/score_phase2.py --archive N     # move the 15 scored runs to test-runs/round-N/ and score them there
-    uv run tools/score_phase2.py --dir test-runs/round-1
+    uv run tests/tools/score_phase2.py                 # score tests/runs/summary/
+    uv run tests/tools/score_phase2.py --archive N     # move the 15 scored runs to round-N/ and score them there
+    uv run tests/tools/score_phase2.py --dir tests/runs/summary/round-1
 
 For each scored run it works out which copy was read (from the transcript), runs
-../phase-1-baseline/tools/check_summary.py on the first reply and, with --quotes, on the
+tests/tools/check_summary.py on the first reply and, with --quotes, on the
 "show quotes" reply, saves both printouts beside the reply and fills one table row.
 Nothing in RESULTS.md is typed by hand.
 """
@@ -27,10 +27,10 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-HERE = pathlib.Path(__file__).resolve().parent.parent          # phase-2-summarizing-input/
-P1 = HERE.parent / "phase-1-baseline"
-sys.path.insert(0, str(P1 / "tools"))
-sys.path.insert(0, str(P1 / "baseline-runs"))
+TESTS = pathlib.Path(__file__).resolve().parents[1]              # tests/
+HERE = TESTS / "runs" / "summary"                               # the summary and its runs
+P1 = TESTS                                                      # test-set/ and runs/baseline/
+sys.path.insert(0, str(TESTS / "tools"))
 import check_summary as cs  # noqa: E402
 from score_baseline import source_read as _p1_source_read  # noqa: E402  (the same "what was read" test as the baseline)
 
@@ -103,7 +103,7 @@ SUFFIXES = [".jsonl", ".md", ".reply.md", ".quotes.md", ".meta.json", ".check.tx
 
 
 def rel(p: pathlib.Path) -> str:
-    """A path as typed from the phase-2 folder."""
+    """A path as typed from tests/runs/summary/."""
     p = p.resolve()
     try:
         return str(p.relative_to(HERE))
@@ -118,7 +118,7 @@ def run_checker(summary: pathlib.Path, article: str, mode: str, quotes: bool) ->
     with contextlib.redirect_stdout(buf):
         cs.main(argv)
     out = buf.getvalue().replace(str(summary), rel(summary))
-    cmd = (f"uv run ../phase-1-baseline/tools/check_summary.py {rel(summary)} --pdf {rel(pdf)} --html {rel(html)} "
+    cmd = (f"uv run ../../tools/check_summary.py {rel(summary)} --pdf {rel(pdf)} --html {rel(html)} "
            f"--source {mode}" + (" --quotes" if quotes else ""))
     rules = {m.group(2): m.group(1) == "pass" for m in re.finditer(r"^(pass|FAIL)\s+([a-z-]+)", out, re.M)}
     return cmd, out, rules
@@ -203,7 +203,7 @@ def baseline() -> dict:
     for name in ("caprolace", "leprosy-adna", "caa-theory", "south-america"):
         out[name] = {"n": 0} | {r: 0 for r, _ in FORMAT}
         for k in RUNS:
-            f = P1 / "baseline-runs" / f"{name}-run{k}.check.txt"
+            f = P1 / "runs" / "baseline" / f"{name}-run{k}.check.txt"
             if not f.exists():
                 continue
             out[name]["n"] += 1
@@ -262,7 +262,7 @@ def scored_section(d: pathlib.Path, title: str) -> tuple[list[str], list[dict], 
         L.append(f"| {name} | {r['source']} | " + " | ".join(cells) + f" | {r['notes']} | {links} |")
 
     L += ["", "### Passes of 3 per article, with the plain-Claude baseline beside each", "",
-          "Each cell: this skill, then the baseline (`../../phase-1-baseline/baseline-runs/RESULTS.md`: the same article by DOI, no plugin). "
+          "Each cell: this skill, then the baseline (`../baseline/RESULTS.md`: the same article by DOI, no plugin). "
           "The baseline never asked for quotes and never ran the scanned copy, so those cells have none.", "",
           "| Article | Runs scored | " + " | ".join(label for _, label in COLUMNS) + " |",
           "|---|---|" + "---|" * len(COLUMNS)]
@@ -391,10 +391,10 @@ def extras_section(d: pathlib.Path) -> list[str]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--dir", default=str(HERE / "test-runs"))
-    ap.add_argument("--archive", type=int, help="move the scored runs to test-runs/round-N/ first")
+    ap.add_argument("--dir", default=str(HERE))
+    ap.add_argument("--archive", type=int, help="move the scored runs to round-N/ first")
     a = ap.parse_args()
-    top = HERE / "test-runs"
+    top = HERE
     d = pathlib.Path(a.dir).resolve()
     if a.archive:
         d = top / f"round-{a.archive}"
@@ -414,11 +414,11 @@ def main() -> int:
     sec, rows, V = scored_section(d, title)
     done = [r for r in rows if r["run"]]
     L = ["# Phase 2 results: the short summary" + (f", {d.name}" if is_round else ""), "",
-         f"Scored {now} by `uv run tools/score_phase2.py`. {len(done)} of 15 runs scored. A script-made table; nothing is typed in.", "",
+         f"Scored {now} by `uv run tests/tools/score_phase2.py`. {len(done)} of 15 runs scored. A script-made table; nothing is typed in.", "",
          "Each run is one headless Claude launch (Sonnet) with the phase-2 plugin zip, in a fresh scratch folder holding "
          "`folder-template/` and, for the PDF runs, the PDF. Two messages go to the same launch: the prompt, then `show quotes`. "
          "Prompts: `https://doi.org/<doi>` for caprolace and leprosy-adna; `Summarize <file>` for caa-theory, south-america and caprolace-scanned. "
-         "The checker is phase 1's `check_summary.py`: the first reply against the format rules, the second with `--quotes` "
+         "The checker is `check_summary.py`: the first reply against the format rules, the second with `--quotes` "
          "(every quote found word for word on its cited page). \"Same details\" is this script's own test: the details of the second reply "
          "are the details of the first, word for word. On the scanned copy the scan-warning line is set aside before checking, and the "
          "quotes are checked against the text of the original `caprolace.pdf`.", ""]
@@ -437,8 +437,8 @@ def main() -> int:
                  + (": " + ", ".join(f"[{t.name[:-10]}](trials/{t.name[:-10]}.reply.md)" for t in trials) if trials else "") + ".")
     missing = 15 - len(done)
     if missing:
-        L += ["", f"{missing} scored rows read \"not run\". Start each with `tools/run_phase2.sh <run>` (a finished run is skipped), then this script."]
-    L += ["", "## Reproduce one row", "", "From `phase-2-summarizing-input/`:", "", "```"]
+        L += ["", f"{missing} scored rows read \"not run\". Start each with `tests/tools/run_phase2.sh <run>` (a finished run is skipped), then this script."]
+    L += ["", "## Reproduce one row", "", "From `tests/runs/summary/`:", "", "```"]
     ex = next((r for r in done if r["tag"] == "caprolace-run1"), done[0] if done else None)
     if ex:
         for f in (f"{ex['tag']}.check.txt", f"{ex['tag']}.quotes.check.txt"):

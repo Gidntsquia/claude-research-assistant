@@ -1,4 +1,4 @@
-"""uv run --with pytest --with pymupdf pytest -q phase-1-baseline/tools"""
+"""uv run --with pytest --with pymupdf pytest -q tests/tools"""
 import pathlib
 import re
 import sys

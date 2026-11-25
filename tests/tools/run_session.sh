@@ -10,7 +10,7 @@
 set -eu
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 WORKSPACE="$1"; OUT="$2"; PROMPT="$3"; shift 3
-PLUGIN="--plugin-dir $REPO/phase-4-customization-install/dist/research-assistant-plugin.zip"
+PLUGIN="--plugin-dir $REPO/dist/research-assistant-plugin.zip"
 RESUME=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -21,7 +21,7 @@ while [ $# -gt 0 ]; do
 done
 # Cowork's sandbox has Python with PDF libraries; this Mac's system Python has none
 # (and no poppler), so give the session a small venv that does.
-VENV="$REPO/phase-1-baseline/tools/.venv"
+VENV="$REPO/tests/tools/.venv"
 if [ ! -x "$VENV/bin/python3" ]; then
   uv venv -q "$VENV" && uv pip install -q --python "$VENV/bin/python3" pymupdf pypdf
 fi
@@ -35,5 +35,5 @@ claude -p "$PROMPT" $PLUGIN $RESUME \
   --permission-mode acceptEdits \
   --allowedTools "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch,Skill,Bash(curl:*),Bash(ls:*),Bash(wc:*),Bash(mkdir:*),Bash(cp:*),Bash(date:*),Bash(python3:*),Bash(pdftotext:*)" \
   --output-format stream-json --verbose > "$OUT.jsonl" || echo "claude exited with $?" >&2
-python3 "$REPO/phase-1-baseline/tools/transcript.py" "$OUT.jsonl" "$PROMPT" > "$OUT.md"
+python3 "$REPO/tests/tools/transcript.py" "$OUT.jsonl" "$PROMPT" > "$OUT.md"
 tail -4 "$OUT.md"

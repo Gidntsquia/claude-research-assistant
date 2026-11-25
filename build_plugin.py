@@ -2,20 +2,14 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Assemble the plugin from the phase folders and zip it.
+"""Assemble the plugin from plugin/ and zip it.
 
-    uv run phase-4-customization-install/build_plugin.py
+    uv run build_plugin.py
 
-Sources (each phase owns its part):
-  phase-2-summarizing-input/skill/article-summary/      -> skills/article-summary/
-  phase-3-discussion-memory/skill/discussion-memory/    -> skills/discussion-memory/
-  phase-3-discussion-memory/folder-template/            -> folder-template/
-  phase-4-customization-install/skill/settings-presets/ -> skills/settings-presets/
-  phase-4-customization-install/folder-template/        -> folder-template/
-  phase-4-customization-install/plugin-src/             -> plugin root (manifest, hooks)
-Output:
-  phase-4-customization-install/build/research-assistant/     (unzipped, for --plugin-dir)
-  phase-4-customization-install/dist/research-assistant-plugin.zip
+Source: plugin/ (skills/, hooks/, manifest, folder-template/). plugin/merge-in/ is not part of
+the build. Output:
+  build/research-assistant/                  (unzipped, for --plugin-dir; gitignored)
+  dist/research-assistant-plugin.zip
 """
 import pathlib
 import shutil
@@ -23,18 +17,10 @@ import sys
 import zipfile
 
 HERE = pathlib.Path(__file__).resolve().parent
-REPO = HERE.parent
+REPO = HERE
+PLUGIN = HERE / "plugin"
 BUILD = HERE / "build" / "research-assistant"
 ZIP = HERE / "dist" / "research-assistant-plugin.zip"
-
-PARTS = [
-    (HERE / "plugin-src", ""),
-    (REPO / "phase-2-summarizing-input/skill/article-summary", "skills/article-summary"),
-    (REPO / "phase-3-discussion-memory/skill/discussion-memory", "skills/discussion-memory"),
-    (HERE / "skill/settings-presets", "skills/settings-presets"),
-    (REPO / "phase-3-discussion-memory/folder-template", "folder-template"),
-    (HERE / "folder-template", "folder-template"),
-]
 REQUIRED = [
     ".claude-plugin/plugin.json",
     "hooks/hooks.json",
@@ -52,9 +38,8 @@ REQUIRED = [
 def main() -> int:
     if BUILD.exists():
         shutil.rmtree(BUILD)
-    for src, dest in PARTS:
-        shutil.copytree(src, BUILD / dest, dirs_exist_ok=True,
-                        ignore=shutil.ignore_patterns(".DS_Store", "__pycache__"))
+    shutil.copytree(PLUGIN, BUILD,
+                    ignore=shutil.ignore_patterns(".DS_Store", "__pycache__", "merge-in"))
     (BUILD / "folder-template" / "articles").mkdir(exist_ok=True)
     (BUILD / "folder-template" / "articles" / "README.md").write_text(
         "Article PDFs go here. Drop them in, or let Claude save the open-access copies it finds.\n")
