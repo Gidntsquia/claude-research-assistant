@@ -5,7 +5,7 @@
 #
 # Builds the trial zip, copies it to ~/Downloads/research-assistant-plugin.zip (the name the
 # guide uses), starts the watcher on ~/Documents/Research and opens the guide PDF, the trial
-# card and the live page in Firefox. Then you follow the guide's ten clicks in Claude Desktop;
+# card and the live page in Firefox. Then you follow the guide's nine clicks in Claude Desktop;
 # nothing here drives the app. Ctrl-C stops the watcher and writes timeline.html.
 #
 # For tests only: RA_TRIAL_FOLDER, RA_TRIAL_DOWNLOADS, RA_TRIAL_PORT replace the folder, the
@@ -18,7 +18,7 @@ PORT="${RA_TRIAL_PORT:-8765}"
 
 if [ -e "$FOLDER" ]; then
   echo "stopped: $FOLDER already exists."
-  echo "The trial starts fresh: the guide's click 8 creates that folder. Move or rename it, then run this again."
+  echo "The trial starts fresh: the guide's click 7 creates that folder. Move or rename it, then run this again."
   exit 1
 fi
 
@@ -61,4 +61,4 @@ echo "Now open Claude Desktop and follow the guide. Waiting; Ctrl-C when the tri
 wait "$WATCHER" || true
 kill -INT "$WATCHER" 2>/dev/null || true
 wait "$WATCHER" 2>/dev/null || true
-echo "to remove the trial plugin: in Claude Desktop open Customize > Plugins, pick Research assistant and remove it (then delete $DOWNLOADS/research-assistant-plugin.zip)"
+echo "to remove the trial plugin: in Claude Desktop click Plugins in the left sidebar, pick Research assistant and remove it (then delete $DOWNLOADS/research-assistant-plugin.zip)"
