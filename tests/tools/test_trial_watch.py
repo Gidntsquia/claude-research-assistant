@@ -142,6 +142,14 @@ def test_stale_usage_file_falls_back_to_the_boxes():
     rows = messages(tw.build_rows([msg(1, 0)], [sample(-5_000_000, 14)], T0 + 60))
     u = rows[0]["message"]["usage"]
     assert u["form"] == "typed" and u["fh"] is None and "no usage sample since" in u["note"]
+    assert rows[0]["message"]["article_total"] is None
+
+
+def test_typed_boxes_win_over_the_usage_file_and_stay_on_the_row():
+    events = [msg(1, 0), ev(2, 1, type="usage", msg=1, which="before", value=1.0),
+              ev(3, 2, type="usage", msg=1, which="after", value=4.0)]
+    u = messages(tw.build_rows(events, [sample(-5, 10), sample(5, 11)], T0 + 60))[0]["message"]["usage"]
+    assert (u["form"], u["fh"], u["pro"]) == ("typed", 3.0, 15.0)
 
 
 # ---- usage, form 2: no numeric fh, two typed boxes (R7, R8) ----

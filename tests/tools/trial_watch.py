@@ -5,6 +5,7 @@
 """Watch the folder of a live Cowork trial and serve a page that shows what the plugin does.
 
     uv run tests/tools/trial_watch.py FOLDER [--port 8765] [--out DIR] [--usage-file FILE]
+                                             [--page /card=FILE ...]
 
 Polls FOLDER once a second (it may not exist yet: the guide's click 8 creates it). Shows one
 timeline row per line of FOLDER/.ra-trace.log (written by the trial zip's hooks) and per file
@@ -139,7 +140,7 @@ def build_rows(events: list[dict], samples: list[dict], now: float) -> list[dict
         u = {"form": form, "before": boxes.get("before"), "after": boxes.get("after"),
              "fh": None, "sd": None, "note": ""}
         if is_number(u["before"]) and is_number(u["after"]):
-            u["fh"], u["source"] = u["after"] - u["before"], "typed"
+            u["fh"], u["source"], u["form"] = u["after"] - u["before"], "typed", "typed"
         elif form == "file":
             if newest is None or newest < start:
                 u["form"] = "typed"
@@ -153,11 +154,11 @@ def build_rows(events: list[dict], samples: list[dict], now: float) -> list[dict
         u["pro"] = u["fh"] * PRO_FACTOR if is_number(u["fh"]) else None
         doi = DOI_RE.search(m.get("text", ""))
         if doi:
-            article, total = doi.group(0).rstrip(".,;)"), 0.0
+            article, total = doi.group(0).rstrip(".,;)"), None
         if article is not None and u["pro"] is not None:
-            total += u["pro"]
+            total = (total or 0.0) + u["pro"]
         info[m["id"]] = {"secs": secs, "approx": approx, "usage": u, "article": article,
-                         "article_total": total if article is not None else None}
+                         "article_total": total}
     rows = []
     for e in events:
         if e["type"] == "usage" or (e["type"] == "mark" and e["id"] not in msg_ids
@@ -313,22 +314,41 @@ class Watch:
         return path
 
 
-def handler_for(watch: Watch):
+def browser(agent: str) -> str:
+    for name in ("Firefox", "Chrome", "Safari", "curl"):
+        if name.lower() in agent.lower():
+            return name
+    return agent[:40] or "unknown"
+
+
+def handler_for(watch: Watch, pages: dict[str, pathlib.Path] | None = None):
+    pages = pages or {}
+    loaded = set()
+
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
 
         def send(self, body, kind="application/json", code=200):
-            data = body.encode() if isinstance(body, str) else json.dumps(body).encode()
+            data = (body if isinstance(body, bytes) else body.encode() if isinstance(body, str)
+                    else json.dumps(body).encode())
             self.send_response(code)
-            self.send_header("Content-Type", kind + "; charset=utf-8")
+            self.send_header("Content-Type", kind + ("" if kind.endswith("pdf") else "; charset=utf-8"))
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(data)
 
         def do_GET(self):
-            if self.path == "/":
+            if self.path == "/" or self.path in pages:
+                if self.path not in loaded:     # so the start command can show the tabs opened
+                    loaded.add(self.path)
+                    print(f"opened in {browser(self.headers.get('User-Agent', ''))}: "
+                          f"{self.path}", flush=True)
+            if self.path in pages:
+                f = pages[self.path]
+                self.send(f.read_bytes(), "application/pdf" if f.suffix == ".pdf" else "text/html")
+            elif self.path == "/":
                 self.send(PAGE, "text/html")
             elif self.path == "/state.json":
                 self.send(watch.state())
@@ -445,7 +465,7 @@ function usageText(m) {
   } else {
     s += 'usage: ' + (u.note ? esc(u.note) + '; ' : '') + 'type the 5-hour bar from Settings > Usage';
   }
-  if (m.article && m.article_total !== null)
+  if (m.article && m.article_total !== null && m.article_total !== undefined)
     s += ' · <span class="est">article so far: <b>' + pct(m.article_total).replace('+','') + '</b> of a Pro window</span>';
   return s;
 }
@@ -519,7 +539,7 @@ function showVersion(v) {
   if (v.note) h += '<div class="meta">' + esc(v.note) + '</div>';
   if (v.diff) {
     h += '<h3>Difference from the version before</h3><pre>' + v.diff.split('\n').map(l => {
-      const c = l.startsWith('@@') ? 'hunk' : l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : '';
+      const c = (l.startsWith('@@') || l.startsWith('---') || l.startsWith('+++')) ? 'hunk' : l.startsWith('+') ? 'add' : l.startsWith('-') ? 'del' : '';
       return c ? '<span class="' + c + '">' + esc(l) + '</span>' : esc(l) + '\n';
     }).join('') + '</pre>';
   }
@@ -560,13 +580,16 @@ def main() -> int:
     ap.add_argument("--out", help="where versions and the timeline go "
                     "(default tests/runs/trial/<YYYY-MM-DD-HHMM>)")
     ap.add_argument("--usage-file", default=str(USAGE_FILE))
+    ap.add_argument("--page", action="append", default=[], metavar="/NAME=FILE",
+                    help="also serve FILE (html or pdf) at /NAME, e.g. the guide and the card")
     args = ap.parse_args()
     folder = pathlib.Path(args.folder).expanduser().resolve()
     stamp = datetime.datetime.now(ET).strftime("%Y-%m-%d-%H%M")
     out = pathlib.Path(args.out).resolve() if args.out else REPO / "tests/runs/trial" / stamp
     watch = Watch(folder, out, pathlib.Path(args.usage_file))
     try:
-        server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(watch))
+        pages = {k: pathlib.Path(v) for k, v in (x.split("=", 1) for x in args.page)}
+        server = ThreadingHTTPServer(("127.0.0.1", args.port), handler_for(watch, pages))
     except OSError as e:
         print(f"cannot serve on port {args.port}: {e}", file=sys.stderr)
         return 1

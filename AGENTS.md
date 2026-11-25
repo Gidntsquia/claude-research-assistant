@@ -8,6 +8,7 @@ A plugin (three skills, two hooks, a folder template) plus a one-page guide for 
 - `build/` is generated and gitignored; `dist/research-assistant-plugin.zip` is committed.
 - Tests and the test set are in `tests/` (`tests/test-set/`, `tests/tools/`, `tests/runs/`). `tests/RESULTS.md` is written by `score_conversations.py`; `tests/runs/walkthrough.html` by `render_walkthrough.py`. `tests/runs/first-build/` and `tests/runs/load-test/` are records of earlier builds.
 - The one check in the real app is `tests/cowork/COWORK-CHECKLIST.md` (done by the user, not by an agent).
+- The live trial in real Cowork (also the user's): `tests/tools/start_trial.sh`, the card `tests/cowork/TRIAL-CARD.html`, the trace wrapper `tests/trial/trace.sh`. Each run's record goes to `tests/runs/trial/<YYYY-MM-DD-HHMM>/` (`timeline.jsonl`, `timeline.html`, `versions/`; article PDFs there are gitignored). Why it works this way: `research/live-trial.md`.
 - Before a skill or the guide changes, the reason goes into its `research/<topic>.md` in an earlier commit.
 - The guide is `guide/guide.html`; its PDF is `guide/research-assistant-guide.pdf`.
 - `plans/` is gitignored.
@@ -16,6 +17,9 @@ A plugin (three skills, two hooks, a folder template) plus a one-page guide for 
 
 ```
 uv run build_plugin.py                                        # rebuild the plugin zip
+uv run build_plugin.py --trial                                # dist/research-assistant-trial.zip (gitignored): shipped plugin + trace line per hook run
+tests/tools/start_trial.sh                                    # live trial: trial zip to ~/Downloads, watcher on ~/Documents/Research, three Firefox tabs; Ctrl-C ends it
+uv run tests/tools/trial_watch.py FOLDER                      # the watcher alone, page on http://localhost:8765
 claude plugin validate build/research-assistant
 uv run guide/make_pdf.py                                      # reprint the guide PDF after a guide change
 uv run --with pytest --with pymupdf pytest -q tests/tools
@@ -39,4 +43,8 @@ uv run tests/tools/render_walkthrough.py 1                    # rewrites tests/r
 - Tokens are counted as characters / 4 everywhere.
 - Every `run_conversation.sh` launch adds a line to `tests/runs/LAUNCHES.md` and the script refuses at 15 lines. It needs `plugin/` and `dist/` committed and the zip rebuilt. Conversation 2 reuses conversation 1's scratch workspace (`$RA_SCRATCH` or `$TMPDIR`), so run c1 before c2 for a repeat.
 - A changed plugin means old conversation rows no longer count: move them to `tests/runs/conversations/old/` before rerunning.
+- The trial zip never edits the shipped hook scripts: `hooks.json` calls `trace.sh`, which logs to `<folder>/.ra-trace.log` and then runs the shipped script. `plugin/` and `dist/research-assistant-plugin.zip` must not change for a trial.
+- `start_trial.sh` refuses to run while `~/Documents/Research` exists and overwrites `~/Downloads/research-assistant-plugin.zip` with the trial zip. `RA_PLUGIN_ZIP=dist/research-assistant-trial.zip tests/tools/run_session.sh ...` runs a headless session with the trial zip.
+- `~/Library/Application Support/Claude/plan-usage-history.json` (read only; `fh`/`sd` taken as 5-hour and 7-day percent, undocumented) had no sample newer than 24 Sep 2026 on 25 Nov 2026; the watcher then asks for the Settings > Usage numbers in two boxes.
+- Firefox's profile folder cannot be read from an agent session ("Operation not permitted"); the watcher prints `opened in Firefox: /path` for each tab that loads from it.
 - A summary length setting must give fewer details than the default's minimum of 5, or "shorter" cannot be told from default.

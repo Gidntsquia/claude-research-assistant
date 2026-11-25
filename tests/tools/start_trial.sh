@@ -28,7 +28,9 @@ cp "$REPO/dist/research-assistant-trial.zip" "$DOWNLOADS/research-assistant-plug
 echo "copied the trial zip to $DOWNLOADS/research-assistant-plugin.zip"
 
 trap : INT TERM
-uv run tests/tools/trial_watch.py "$FOLDER" --port "$PORT" &
+uv run tests/tools/trial_watch.py "$FOLDER" --port "$PORT" \
+  --page "/guide.pdf=$REPO/guide/research-assistant-guide.pdf" \
+  --page "/card=$REPO/tests/cowork/TRIAL-CARD.html" &
 WATCHER=$!
 
 n=0
@@ -44,12 +46,15 @@ done
 
 BG=""
 if [ "${RA_TRIAL_BACKGROUND:-}" = 1 ]; then BG="-g"; fi
-for target in "$REPO/guide/research-assistant-guide.pdf" "$REPO/tests/cowork/TRIAL-CARD.html" "http://localhost:$PORT"; do
+# All three come from the watcher, so it can say which tabs really loaded (and the card's
+# Copy buttons work, which they may not from a file).
+for target in "http://localhost:$PORT/guide.pdf" "http://localhost:$PORT/card" "http://localhost:$PORT/"; do
   # shellcheck disable=SC2086
   open $BG -a Firefox "$target"
   sleep 0.5
 done
-echo "opened in Firefox: the guide, the trial card, the live page."
+sleep 3
+echo "asked Firefox for three tabs: the guide, the trial card, the live page (each \"opened in\" line above is a tab that loaded)."
 echo "Now open Claude Desktop and follow the guide. Waiting; Ctrl-C when the trial is over."
 
 # The first wait returns when Ctrl-C arrives; the second lets the watcher write timeline.html.
