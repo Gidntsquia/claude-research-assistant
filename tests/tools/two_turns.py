@@ -5,10 +5,14 @@
 
 The command after `--` is started once. Its stdout (stream-json events) is written to OUT.jsonl
 as it arrives. A message is sent only after the `result` event of the previous one, so the second
-message can never land in the middle of the first turn. If a turn ends in an error (budget or turn
+message can never land in the middle of the first turn. If the environment variable
+TWO_TURNS_SNAPSHOT is set to "SRC_DIR:DST_DIR", SRC_DIR is copied to DST_DIR/after-N when the reply
+to message N is complete (used to see what memory/ held after each message). If a turn ends in an error (budget or turn
 cap), the later messages are not sent. Exit code: 0 when every message got a result, else 1.
 """
 import json
+import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -42,6 +46,11 @@ def main() -> int:
                 if event.get("type") != "result":
                     continue
                 results += 1
+                snap = os.environ.get("TWO_TURNS_SNAPSHOT", "")
+                if ":" in snap:
+                    src, dst = snap.split(":", 1)
+                    if os.path.isdir(src):
+                        shutil.copytree(src, os.path.join(dst, f"after-{results}"), dirs_exist_ok=True)
                 if pending and not event.get("is_error"):
                     send(pending.pop(0))
                 else:
