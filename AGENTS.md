@@ -8,7 +8,7 @@ A plugin (three skills, two hooks, a folder template) plus a one-page guide for 
 - `build/` is generated and gitignored; `dist/research-assistant-plugin.zip` is committed.
 - Tests and the test set are in `tests/` (`tests/test-set/`, `tests/tools/`, `tests/runs/`). `tests/RESULTS.md` is written by `score_conversations.py`; `tests/runs/walkthrough.html` by `render_walkthrough.py`. `tests/runs/first-build/` and `tests/runs/load-test/` are records of earlier builds.
 - The one check in the real app is `tests/cowork/COWORK-CHECKLIST.md` (done by the user, not by an agent).
-- The live trial in real Cowork (also the user's): `tests/tools/start_trial.sh`, the card `tests/cowork/TRIAL-CARD.html`, the trace wrapper `tests/trial/trace.sh`. Each run's record goes to `tests/runs/trial/<YYYY-MM-DD-HHMM>/` (`timeline.jsonl`, `timeline.html`, `versions/`; article PDFs there are gitignored). Why it works this way: `research/live-trial.md`.
+- The live trial in real Cowork (also the user's): the setup walkthrough `tests/cowork/TRIAL-SETUP.html` (open it in Firefox first; it starts from nothing set up), `tests/tools/start_trial.sh`, the card `tests/cowork/TRIAL-CARD.html`, the trace wrapper `tests/trial/trace.sh`. Each run's record goes to `tests/runs/trial/<YYYY-MM-DD-HHMM>/` (`timeline.jsonl`, `timeline.html`, `versions/`; article PDFs there are gitignored). Why it works this way: `research/live-trial.md`.
 - Before a skill or the guide changes, the reason goes into its `research/<topic>.md` in an earlier commit.
 - The guide is `guide/guide.html`; its PDF is `guide/research-assistant-guide.pdf`.
 - `plans/` is gitignored.
