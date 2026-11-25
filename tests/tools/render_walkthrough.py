@@ -31,8 +31,8 @@ h2.conv{font-size:16px;margin:28px 0 4px} p.conv{margin:0 0 14px;color:#555;font
 .what{font-size:12.5px;color:#7a6a4a;margin:0 0 4px;text-transform:uppercase;letter-spacing:.04em}
 """
 WHAT = {
-    "c1": ["A link to an article: the short summary", "A challenge with no reason: the position is held",
-           "A challenge with a page and field evidence", "A request to change how it answers: saved, presets mentioned once",
+    "c1": ["A link to an article: the short summary", "A request for the article's own sentences",
+           "A complaint about that answer", "A request to change how it answers: saved, presets mentioned once",
            "The settings, listed"],
     "c2": ["A later session: recall of the subject", "A correction to what was remembered", "Forgetting it",
            "A new article: the summary is now shorter"],

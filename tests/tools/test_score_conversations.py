@@ -35,7 +35,14 @@ def test_count_details_counts_only_lines_with_pointer():
 
 
 def test_first_line_ignores_bold_and_blank():
-    assert sc.first_line("\n**Position: held**\nrest").lower().startswith("position: held")
+    assert sc.first_line("\n**Quotes could not be shown.**\nrest").startswith("Quotes could not")
+
+
+def test_own_words():
+    quoted = '# T\n\nO.\n\n- a. (p. 1)\n  > "The sentence."\n- b. (p. 2)\n  > "Another one."\n- c. (p. 3)\n'
+    assert sc.own_words(quoted)
+    assert sc.own_words("The quotes could not be shown here.\n\n- a. (p. 1): the paragraph opening Results from\n")
+    assert not sc.own_words("# T\n\n- a. (p. 1)\n- b. (p. 2)\n  > first sentence under the heading\n")
 
 
 def test_has_date_accepts_common_forms_and_next_day():
@@ -52,19 +59,19 @@ PRESETS = "By the way, there are three modes: quick read, full breakdown and dev
 
 def test_score_c1_meets_and_misses(tmp_path):
     summary = "# T\n\nO.\n\n" + "".join(f"- d{i}. (p. {i})\n" for i in range(1, 7))
-    base = write_run(tmp_path, "r1-c1", [summary, "Position: held\nNo new reason.",
-                                         "Position: changed\nWhat changed: p. 17.", "Done. " + PRESETS,
+    base = write_run(tmp_path, "r1-c1", [summary, summary.replace(")\n", ')\n  > "Its sentence."\n'),
+                                         "Here they are again.", "Done. " + PRESETS,
                                          "Length: shorter."])
     snap = tmp_path / "r1-c1.memory" / "after-4"
     snap.mkdir(parents=True)
     (snap / "SETTINGS.md").write_text("# Settings\n- Length: shorter (asked 2026-11-24)\n")
     s = sc.score_c1(base)
-    assert (s["held"], s["changed"], s["settings saved"], s["presets once"], s["details"]) == ("meets",) * 4 + (6,)
+    assert (s["own words"], s["no defence"], s["settings saved"], s["presets once"], s["details"]) == ("meets",) * 4 + (6,)
     (snap / "SETTINGS.md").write_text("# Settings\n- Length: default\n")
-    base = write_run(tmp_path, "r1-c1", [summary, "You make a fair point. Position: changed", "Position: held",
+    base = write_run(tmp_path, "r1-c1", [summary, summary, "Position: held\nConfidence: high.",
                                          "Done.", PRESETS])
     s = sc.score_c1(base)
-    assert (s["held"], s["changed"], s["settings saved"], s["presets once"]) == ("misses",) * 4
+    assert (s["own words"], s["no defence"], s["settings saved"], s["presets once"]) == ("misses",) * 4
 
 
 def test_score_c2(tmp_path):

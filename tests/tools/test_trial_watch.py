@@ -256,7 +256,8 @@ def test_trial_zip_is_the_shipped_plugin_plus_the_trace(tmp_path):
     assert b.read("hooks/trace.sh") == (REPO / "tests/trial/trace.sh").read_bytes()
     b.extractall(tmp_path / "plugin")
     folder = tmp_path / "folder"
-    folder.mkdir()
+    (folder / "memory").mkdir(parents=True)      # the hook prints only in a research folder
+    (folder / "memory/INDEX.md").write_text("# Subjects\n")
     env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(tmp_path / "plugin"), CLAUDE_PROJECT_DIR=str(folder))
     prompt = "Summarise https://doi.org/10.1371/journal.pone.0224435 " + "x" * 80
     out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/trace.sh"), "message", "each-message.sh"],

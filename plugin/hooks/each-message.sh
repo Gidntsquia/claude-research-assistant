@@ -1,17 +1,35 @@
 #!/bin/sh
-# UserPromptSubmit hook: the rules that must hold on every message, in fixed lines.
-# A rule that lives only in a skill fades late in a long conversation; these lines do not.
-# Line 1 (summary) and line 2 (challenge) print in every folder. The memory, settings and
-# presets lines print only in a folder that has memory/INDEX.md, so other folders on his
-# account get no file-writing instructions.
+# UserPromptSubmit hook: two facts on each message, in at most 60 words: where the research
+# memory is, and what he has asked for (the lines of memory/SETTINGS.md that are not at their
+# default; an active preset is given with its text as the file now has it).
+# Prints only in a folder that has memory/INDEX.md, so other folders on his account get nothing.
 DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
-echo '[research-assistant] Article summaries (full rules: article-summary skill): start with the title line; an opening of 2 to 3 sentences, 60 words at most; then 5 to 8 key details, each one plain sentence of 25 words at most (aim for 15 to 20 and count them before sending) ending with its pointer: (p. N) if a PDF was read, otherwise (sec. "Heading"), (Fig. N) or (Table N); at most 2 marked (inference). No quotations unless he says "show quotes"; then repeat the same details word for word, each with its exact quote from the cited page on an indented line beneath. At most 4 headings, worded from the article own section titles or argument steps, and none for an article under 10 pages. Never write "not stated". Keep the author hedges and sample sizes. Before sending a summary or its quotes, check it: 5 to 8 details, word limits kept, and every supporting quote found in the text of the page its pointer names (fix the pointer if it is on the next page).'
-echo '[research-assistant] If this message disagrees with or challenges something you said (full rules: discussion-memory skill): the first line of your answer is exactly "Position: held" or "Position: changed", nothing before it. Then his point in its strongest form, then your critique, then your confidence (high, medium or low) and what it rests on. "Changed" only if this message brings new evidence (a page, a datum, a source, something he has seen in the field) or an argument you had not weighed, and then say "What changed:" and name it; a change in part is still "Position: changed". Repetition, firmness, "everyone knows" or seniority are not reasons: then hold, kindly, and say what would change your mind. No praise for the objection.'
-if [ -f "$DIR/memory/INDEX.md" ]; then
-  echo "[research-assistant] The research memory is the folder $DIR/memory (inside his connected folder, next to CLAUDE.md), not Claude's or the app's own memory store. Order for this message: (1) read what you need: for a subject under a heading of the memory index, that heading's one branch file, one file per level, never the whole folder; when you recall, give the date you last discussed it, his position then, your position then, and one new angle; (2) if the message is about a research subject, rewrite that subject's one branch file in $DIR/memory/ and its index line now (his position, yours, today's date, open angles); if he says \"that's wrong\" about something remembered, fix that entry now and confirm in one line what it now says; if he says \"forget that\", remove the entry and its index line now and answer \"Forgotten.\"; if he asked to change how you answer from now on, write that to $DIR/memory/SETTINGS.md now; (3) then write your answer to him as the last thing in your turn, complete in itself. He never saves, pastes or edits anything. Never end with a remark about notes or files, and never refer to text 'above': he sees only your final answer."
-  echo "[research-assistant] Settings in $DIR/memory/SETTINGS.md apply to every reply and win over the default sizes above: Length 'shorter' means a summary of 3 to 4 key details under an opening of 2 sentences, each detail still ending with its pointer; preset 'quick read' means the opening and 5 details with no headings; 'full breakdown' means 8 details with the quotes shown at once; 'devil's advocate' means that in discussion you give the counter-case first, say that you are doing so, and end with one line on what you actually think. If he asks \"what are my settings?\", list them in plain words, defaults included, without naming the file. Ask no setup questions."
-  if grep -q '^- Presets mentioned: no' "$DIR/memory/SETTINGS.md" 2>/dev/null; then
-    echo "[research-assistant] Presets have not been mentioned yet. If this message asks to change how you answer (length, tone, style), or Conversations in the settings is 5 or more, end your answer with this note, once: 'By the way, there are three ready-made modes you can ask for by name: quick read (the short version), full breakdown (more detail, with the quotes shown) and devil's advocate (I argue the other side first). Say \"use quick read\" whenever you like, or ignore this and carry on as we are.' Then make the line in $DIR/memory/SETTINGS.md read '- Presets mentioned: yes'. Otherwise do not mention presets."
-  fi
+S="$DIR/memory/SETTINGS.md"
+[ -f "$DIR/memory/INDEX.md" ] || exit 0
+SAVED=""
+if [ -f "$S" ]; then
+  SAVED="$(awk '
+    /^# /               { sec = $0; next }
+    sec == "# Presets" && /^- / { line = substr($0, 3); i = index(line, ":")
+                          if (i) { name[++n] = substr(line, 1, i - 1); text[n] = substr(line, i + 2) } next }
+    sec == "# Settings" && /^- / { line = substr($0, 3); i = index(line, ":")
+                          if (!i) next
+                          key = substr(line, 1, i - 1); val = substr(line, i + 2)
+                          low = tolower(val)
+                          if (low == "" || low ~ /^(default|none)/) next
+                          if (key == "Preset") preset = val
+                          else out = out (out == "" ? "" : "; ") key ": " val }
+    END { if (preset != "") { p = "preset " preset
+            for (k = 1; k <= n; k++) if (index(tolower(preset), tolower(name[k])) == 1) p = "preset " name[k] " = " text[k]
+            out = out (out == "" ? "" : "; ") p }
+          print out }' "$S")"
 fi
+if [ -n "$SAVED" ]; then
+  MSG="[research-assistant] Research memory: $DIR/memory. His saved settings apply to this reply: $SAVED"
+else
+  MSG="[research-assistant] Research memory: $DIR/memory. His saved settings: all at the defaults."
+fi
+printf '%s\n' "$MSG" | awk '{ if (NF <= 60) { print; next }
+  for (i = 1; i <= 56; i++) printf "%s ", $i
+  print "... (rest: memory/SETTINGS.md)" }'
 exit 0

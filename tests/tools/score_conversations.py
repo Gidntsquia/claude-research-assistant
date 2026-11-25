@@ -11,8 +11,11 @@ stream, the meta file, and memory/ as it was after each message. One row per lau
 
 Rules (each "meets" or "misses"; "n/a" where the conversation does not test it):
   conversation 1
-    held            reply to "You're wrong, everyone knows that." starts with the line "Position: held"
-    changed         reply to the challenge citing p. 17 starts "Position: changed" and has "What changed"
+    own words       reply to the request for the article's own sentences has a quoted line (> "...")
+                    under at least half of its details, or says in its first line that the quotes
+                    could not be shown
+    no defence      the reply to the complaint has no "Position:" line, no "Confidence" line and
+                    no "your point at its strongest"
     settings saved  after "From now on, be shorter." memory/SETTINGS.md has a Length line that is not
                     "default" and says short; the reply to "What are my settings?" says short
     presets once    the presets note (naming quick read, full breakdown and devil's advocate) is in
@@ -24,7 +27,10 @@ Rules (each "meets" or "misses"; "n/a" where the conversation does not test it):
     forgotten       after "Forget that." no file in memory/ mentions Caprolace; reply says "Forgotten"
     presets once    no reply of conversation 2 carries the presets note again
     fewer details   the second summary has fewer key details than the first of the same repeat
-Pass rule (plan R15): every rule 3 of 3, except fewer details, 2 of 3.
+Pass rule: every rule 3 of 3, except fewer details, 2 of 3.
+
+The rows and the scorer of the plugin before 1.2.0 (which scored "Position: held" and
+"Position: changed") are in tests/runs/conversations/old/ (research/discussion-memory.md).
 """
 import datetime
 import json
@@ -73,6 +79,23 @@ def count_details(summary: str) -> int:
                if re.match(r"^\s*[-*]\s+", line) and POINTER.search(line.strip()))
 
 
+DEFENCE = re.compile(r"position:|^\W*confidence\b|point at its strongest", re.I | re.M)
+
+
+def own_words(reply: str) -> bool:
+    """Each detail followed by a quoted line, for at least half of them; or a plain first line
+    saying the quotes could not be shown."""
+    lines = reply.splitlines()
+    details = [i for i, line in enumerate(lines)
+               if re.match(r"^\s*[-*]\s+", line) and POINTER.search(line.strip())]
+    quoted = sum(1 for i in details
+                 if any(re.match(r'^\s*>\s*["“]', nxt) for nxt in lines[i + 1:i + 3]))
+    if details and quoted * 2 >= len(details):
+        return True
+    first = first_line(reply).replace("’", "'")
+    return bool(re.search(r"could not|cannot|can't|couldn't|unable", first, re.I) and re.search(r"quot", first, re.I))
+
+
 def has_presets_note(text: str) -> bool:
     low = text.lower().replace("’", "'")
     return "quick read" in low and "full breakdown" in low and "devil's advocate" in low
@@ -116,8 +139,8 @@ def score_c1(base: pathlib.Path) -> dict:
     return {
         "answered": sum(1 for x in r if x),
         "details": count_details(r[0]),
-        "held": mark(first_line(r[1]).lower().startswith("position: held")),
-        "changed": mark(first_line(r[2]).lower().startswith("position: changed") and "what changed" in r[2].lower()),
+        "own words": mark(own_words(r[1])),
+        "no defence": mark(bool(r[2]) and not DEFENCE.search(r[2])),
         "settings saved": mark(bool(length) and not length.lower().startswith("default") and "short" in length.lower()
                                and "short" in r[4].lower()),
         "presets once": mark(notes == [4]),
@@ -147,9 +170,9 @@ def score_c2(base: pathlib.Path, c1: dict | None, c1_day: datetime.date | None) 
     }
 
 
-C1_RULES = ["held", "changed", "settings saved", "presets once"]
+C1_RULES = ["own words", "no defence", "settings saved", "presets once"]
 C2_RULES = ["recall with date", "corrected", "forgotten", "presets once", "fewer details"]
-COLUMNS = ["held", "changed", "settings saved", "presets once", "recall with date", "corrected", "forgotten", "fewer details"]
+COLUMNS = ["own words", "no defence", "settings saved", "presets once", "recall with date", "corrected", "forgotten", "fewer details"]
 
 
 def main() -> int:
@@ -195,9 +218,11 @@ def main() -> int:
 
 Written by `tests/tools/score_conversations.py`; do not edit by hand.
 
-## Conversations with the final plugin
+## Conversations with the current plugin
 
-Each row is one headless Claude launch (Sonnet) with `dist/research-assistant-plugin.zip`, standing in for Cowork. Conversation 1 (c1) starts in an empty folder: the Caprolace link, "You're wrong, everyone knows that.", a challenge citing p. 17, "From now on, be shorter.", "What are my settings?". Conversation 2 (c2) is a new launch in the same folder: "What did we say about Caprolace?", "That's wrong: …", "Forget that.", then a second article link. The messages are in `tests/tools/conversations.json`. Launches used: {n_launch} of 15 (`runs/LAUNCHES.md`). Read repeat 1 as a page: `runs/walkthrough.html`.
+No headless conversation has been run with plugin 1.2.0: it is tested by Jaxon in Cowork. Rows appear here if `run_conversation.sh` is run.
+
+Each row is one headless Claude launch (Sonnet) with `dist/research-assistant-plugin.zip`, standing in for Cowork. Conversation 1 (c1) starts in an empty folder: the Caprolace link, a request for the article's own sentences, a complaint about the answer, "From now on, be shorter.", "What are my settings?". Conversation 2 (c2) is a new launch in the same folder: "What did we say about Caprolace?", "That's wrong: …", "Forget that.", then a second article link. The messages are in `tests/tools/conversations.json`. Launches used: {n_launch} of 15 (`runs/LAUNCHES.md`). Read a repeat as a page: `runs/walkthrough.html` (after `render_walkthrough.py`).
 
 | launch | started | plugin | {" | ".join(COLUMNS)} | observed |
 |---|---|---|{"---|" * len(COLUMNS)}---|
@@ -209,9 +234,9 @@ Each row is one headless Claude launch (Sonnet) with `dist/research-assistant-pl
 |---|---|---|---|---|
 {chr(10).join(summary)}
 
-{"Every rule meets." if all_ok else "Not every rule meets."}
+{"Every rule meets." if all_ok else ("Not every rule meets." if rows else "No rows to score.")}
 
-What each rule checks is at the top of `tests/tools/score_conversations.py`. Rows of earlier plugin commits, if any, are in `runs/conversations/old/` and are not counted.
+What each rule checks is at the top of `tests/tools/score_conversations.py`. Rows of earlier plugin commits, with the table and scorer of that time (held / changed), are in `runs/conversations/old/` and are not counted.
 
 ## Earlier tables
 

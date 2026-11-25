@@ -34,6 +34,7 @@ REQUIRED = [
     "hooks/session-start.sh",
     "hooks/each-message.sh",
     "skills/article-summary/SKILL.md",
+    "skills/article-summary/scripts/quotes.py",
     "skills/discussion-memory/SKILL.md",
     "skills/settings-presets/SKILL.md",
     "folder-template/CLAUDE.md",
