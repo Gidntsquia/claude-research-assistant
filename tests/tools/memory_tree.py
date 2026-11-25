@@ -497,7 +497,7 @@ def main(argv=None) -> int:
     sc = sub.add_parser("scale")
     sc.add_argument("--sizes", type=int, nargs="+", default=[10, 100, 1000])
     sc.add_argument("--out", type=pathlib.Path, default=here / "out")
-    sc.add_argument("--report", type=pathlib.Path, default=here / "REPORT.md")
+    sc.add_argument("--report", type=pathlib.Path, default=here.parent / "runs" / "memory" / "REPORT.md")
     sc.add_argument("--seed", type=int, default=7)
     ck = sub.add_parser("check")
     ck.add_argument("memory_dir", type=pathlib.Path)
