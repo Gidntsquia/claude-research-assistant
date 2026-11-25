@@ -7,10 +7,11 @@
 #
 # User-level settings and CLAUDE.md are left out (--setting-sources project,local)
 # so the session sees what the professor's would: the plugin and the folder.
+# RA_PLUGIN_ZIP=path loads another zip (the trial zip) in place of the shipped one.
 set -eu
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 WORKSPACE="$1"; OUT="$2"; PROMPT="$3"; shift 3
-PLUGIN="--plugin-dir $REPO/dist/research-assistant-plugin.zip"
+PLUGIN="--plugin-dir ${RA_PLUGIN_ZIP:-$REPO/dist/research-assistant-plugin.zip}"
 RESUME=""
 while [ $# -gt 0 ]; do
   case "$1" in

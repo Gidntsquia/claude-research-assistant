@@ -7,3 +7,4 @@ __pycache__/
 .venv/
 build/
 tests/tools/out/
+dist/research-assistant-trial.zip
