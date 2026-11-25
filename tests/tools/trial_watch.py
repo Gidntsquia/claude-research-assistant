@@ -7,7 +7,7 @@
     uv run tests/tools/trial_watch.py FOLDER [--port 8765] [--out DIR] [--usage-file FILE]
                                              [--page /card=FILE ...]
 
-Polls FOLDER once a second (it may not exist yet: the guide's click 7 creates it). Shows one
+Polls FOLDER once a second (it may not exist yet: the guide's part 2 creates it). Shows one
 timeline row per line of FOLDER/.ra-trace.log (written by the trial zip's hooks) and per file
 created, changed or deleted, with time per reply and usage per message. Every file version is
 kept under tests/runs/trial/<YYYY-MM-DD-HHMM>/ with timeline.jsonl; Ctrl-C writes timeline.html
@@ -516,7 +516,7 @@ function fillMessage(tr, r) {
 }
 
 function render(s) {
-  $('folder').textContent = s.folder + (s.folder_exists ? '' : ' (not there yet: the guide\'s click 7 creates it)');
+  $('folder').textContent = s.folder + (s.folder_exists ? '' : ' (not there yet: the guide\'s part 2 creates it)');
   $('now').textContent = s.now;
   const b = $('banner'); b.className = s.banner.color; b.textContent = s.banner.text;
   const body = $('rows');
