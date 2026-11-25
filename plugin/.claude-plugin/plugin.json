@@ -1,6 +1,6 @@
 {
-  "name": "research-assistant-summary",
-  "version": "0.2.0",
-  "description": "Phase 2 of the research assistant: short article summaries (an opening and 5 to 8 plain details with page numbers), exact quotes on request.",
+  "name": "research-assistant",
+  "version": "1.1.0",
+  "description": "Short article summaries (an opening and 5 to 8 plain details, each with its page number; exact quotes on request), discussion that holds its ground, and a memory of past subjects that stays the same size however many conversations you have.",
   "author": { "name": "Jaxon Lee" }
 }
