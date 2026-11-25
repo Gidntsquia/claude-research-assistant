@@ -1,0 +1,6 @@
+{
+  "name": "research-assistant-summary",
+  "version": "0.2.0",
+  "description": "Phase 2 of the research assistant: short article summaries (an opening and 5 to 8 plain details with page numbers), exact quotes on request.",
+  "author": { "name": "Jaxon Lee" }
+}

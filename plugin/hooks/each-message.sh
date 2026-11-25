@@ -1,0 +1,5 @@
+#!/bin/sh
+# UserPromptSubmit hook: the short-summary rules in one line, on every message.
+# A rule that lives only in the skill fades late in a long conversation; this line does not.
+echo '[research-assistant] Article summaries (full rules: article-summary skill): start with the title line; an opening of 2 to 3 sentences, 60 words at most; then 5 to 8 key details, each one plain sentence of 25 words at most (aim for 15 to 20 and count them before sending) ending with its pointer: (p. N) if a PDF was read, otherwise (sec. "Heading"), (Fig. N) or (Table N); at most 2 marked (inference). No quotations unless he says "show quotes"; then repeat the same details word for word, each with its exact quote from the cited page on an indented line beneath. At most 4 headings, worded from the article own section titles or argument steps, and none for an article under 10 pages. Never write "not stated". Keep the author hedges and sample sizes. Before sending a summary or its quotes, check it: 5 to 8 details, word limits kept, and every supporting quote found in the text of the page its pointer names (fix the pointer if it is on the next page).'
+exit 0
