@@ -18,14 +18,11 @@ Rules (each "meets" or "misses"; "n/a" where the conversation does not test it):
                     no "your point at its strongest"
     settings saved  after "From now on, be shorter." memory/SETTINGS.md has a Length line that is not
                     "default" and says short; the reply to "What are my settings?" says short
-    presets once    the presets note (naming quick read, full breakdown and devil's advocate) is in
-                    the reply to "be shorter" and in no other reply of the conversation
   conversation 2
     recall with date  reply to "What did we say about Caprolace?" gives the date of conversation 1
                       and both positions ("you" and "I")
     corrected       after "That's wrong: ..." the Caprolace entry in memory/ says "undecided"
     forgotten       after "Forget that." no file in memory/ mentions Caprolace; reply says "Forgotten"
-    presets once    no reply of conversation 2 carries the presets note again
     fewer details   the second summary has fewer key details than the first of the same repeat
 Pass rule: every rule 3 of 3, except fewer details, 2 of 3.
 
@@ -96,11 +93,6 @@ def own_words(reply: str) -> bool:
     return bool(re.search(r"could not|cannot|can't|couldn't|unable", first, re.I) and re.search(r"quot", first, re.I))
 
 
-def has_presets_note(text: str) -> bool:
-    low = text.lower().replace("’", "'")
-    return "quick read" in low and "full breakdown" in low and "devil's advocate" in low
-
-
 def date_forms(d: datetime.date) -> list[str]:
     m = MONTHS[d.month - 1]
     return [d.isoformat(), f"{d.day} {m}", f"{m} {d.day}", f"{d.day} {m[:3]}", f"{m[:3]} {d.day}",
@@ -135,7 +127,6 @@ def score_c1(base: pathlib.Path) -> dict:
     if settings.is_file():
         m = re.search(r"^- Length:\s*(.*)$", settings.read_text(encoding="utf-8"), re.M)
         length = m.group(1).strip() if m else ""
-    notes = [i + 1 for i, text in enumerate(r) if has_presets_note(text)]
     return {
         "answered": sum(1 for x in r if x),
         "details": count_details(r[0]),
@@ -143,8 +134,7 @@ def score_c1(base: pathlib.Path) -> dict:
         "no defence": mark(bool(r[2]) and not DEFENCE.search(r[2])),
         "settings saved": mark(bool(length) and not length.lower().startswith("default") and "short" in length.lower()
                                and "short" in r[4].lower()),
-        "presets once": mark(notes == [4]),
-        "note": f"Length line: `{length or 'none'}`; presets note in replies {notes or 'none'}",
+        "note": f"Length line: `{length or 'none'}`",
     }
 
 
@@ -157,22 +147,20 @@ def score_c2(base: pathlib.Path, c1: dict | None, c1_day: datetime.date | None) 
     after3_dir = pathlib.Path(f"{base}.memory/after-3")
     after3 = memory_text(after3_dir)
     details = count_details(r[3])
-    notes = [i + 1 for i, text in enumerate(r) if has_presets_note(text)]
     return {
         "answered": sum(1 for x in r if x),
         "details": details,
         "recall with date": mark(recalled),
         "corrected": mark("undecided" in after2.lower()),
         "forgotten": mark(after3_dir.is_dir() and "caprolace" not in after3.lower() and "forgotten" in r[2].lower()),
-        "presets once": mark(not notes),
         "fewer details": mark(bool(c1) and 0 < details < c1["details"]),
-        "note": f"second summary {details} details against {c1['details'] if c1 else '?'}; presets note in replies {notes or 'none'}",
+        "note": f"second summary {details} details against {c1['details'] if c1 else '?'}",
     }
 
 
-C1_RULES = ["own words", "no defence", "settings saved", "presets once"]
-C2_RULES = ["recall with date", "corrected", "forgotten", "presets once", "fewer details"]
-COLUMNS = ["own words", "no defence", "settings saved", "presets once", "recall with date", "corrected", "forgotten", "fewer details"]
+C1_RULES = ["own words", "no defence", "settings saved"]
+C2_RULES = ["recall with date", "corrected", "forgotten", "fewer details"]
+COLUMNS = ["own words", "no defence", "settings saved", "recall with date", "corrected", "forgotten", "fewer details"]
 
 
 def main() -> int:

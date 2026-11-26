@@ -34,21 +34,33 @@ def messages(rows):
     return [r for r in rows if "message" in r]
 
 
-# ---- trace lines ----
+# ---- marker lines ----
 
-def test_trace_line_uses_its_unix_time():
-    e = tw.parse_trace_line("2026-11-25 12:09:25 ET\tmessage\tSummarise this\t1795626565\n", 5.0)
-    assert (e["kind"], e["text"], e["t"]) == ("message", "Summarise this", 1795626565.0)
-
-
-def test_trace_line_without_unix_time_takes_the_time_seen():
-    e = tw.parse_trace_line("2026-11-25 12:09:25 ET\tsession-start\t", 77.0)
-    assert e["kind"] == "session-start" and e["t"] == 77.0
+def seen(h, m, s):
+    import datetime
+    return datetime.datetime(2026, 11, 25, h, m, s, tzinfo=tw.ET).timestamp()
 
 
-def test_other_lines_are_not_trace_lines():
-    assert tw.parse_trace_line("hello", 1.0) is None
-    assert tw.parse_trace_line("x\tunknown\ty\t1", 1.0) is None
+def test_marker_line_gives_kind_version_and_its_own_time():
+    e = tw.parse_marker_line("research-assistant 1.3.0-trial message 12:09:25 ET\n", seen(12, 10, 0))
+    assert (e["kind"], e["version"], e["t"]) == ("message", "1.3.0-trial", seen(12, 9, 25))
+
+
+def test_marker_line_found_inside_a_list_item_or_code():
+    e = tw.parse_marker_line("- `research-assistant 1.3.0-trial session-start 12:09:25 ET`", seen(12, 9, 30))
+    assert e["kind"] == "session-start" and e["version"] == "1.3.0-trial"
+
+
+def test_marker_time_far_from_the_clock_takes_the_time_seen():
+    """A VM without Eastern time prints another hour; the row is then placed when it was seen."""
+    e = tw.parse_marker_line("research-assistant 1.3.0-trial message 17:09:25 ET", seen(12, 10, 0))
+    assert e["t"] == seen(12, 10, 0)
+
+
+def test_other_lines_are_not_marker_lines():
+    assert tw.parse_marker_line("hello", 1.0) is None
+    assert tw.parse_marker_line("research-assistant 1.3.0 unknown 12:00:00 ET", 1.0) is None
+    assert tw.parse_marker_line("2026-11-25 12:09:25 ET\tmessage\tSummarise this\t1795626565", 1.0) is None
 
 
 def test_times_are_eastern():
@@ -57,20 +69,23 @@ def test_times_are_eastern():
 
 # ---- banner (R4) ----
 
-def test_banner_green_counts_session_starts_and_messages():
-    events = [ev(1, 0, type="trace", kind="session-start", text=""), msg(2, 1), msg(3, 9)]
-    b = tw.banner(events)
-    assert b["color"] == "green" and "1 session start," in b["text"] and "2 messages" in b["text"]
+def test_banner_green_counts_session_starts_and_messages_and_names_the_version():
+    events = [ev(1, 0, type="trace", kind="session-start", text="", version="1.3.0-trial"),
+              dict(msg(2, 1), version="1.3.0-trial"), dict(msg(3, 9), version="1.3.0-trial"), write(4, 10)]
+    assert tw.banner(events) == {"color": "green", "text": "hooks ran in Claude Desktop: 1 session start, "
+                                 "2 messages, plugin 1.3.0-trial"}
 
 
-def test_banner_red_when_files_are_written_and_no_hook_line():
-    b = tw.banner([write(1, 3)])
-    assert b == {"color": "red",
-                 "text": "no hook lines: hooks did not fire or could not write"}
+def test_banner_red_when_memory_files_are_written_and_no_marker():
+    assert tw.banner([write(1, 3)]) == {"color": "red", "text": "hooks did not reach Claude: remove them"}
+
+
+def test_banner_grey_for_files_that_are_not_memory():
+    assert tw.banner([write(1, 3, path="articles/a.pdf")]) == {"color": "grey", "text": "no chat yet"}
 
 
 def test_banner_grey_before_anything():
-    assert tw.banner([])["color"] == "grey"
+    assert tw.banner([]) == {"color": "grey", "text": "no chat yet"}
 
 
 # ---- seconds to reply (R6) ----
@@ -193,8 +208,11 @@ def test_watch_waits_for_the_folder_then_sees_files_versions_and_trace(tmp_path)
     assert w.events == [] and w.state()["folder_exists"] is False
     folder = tmp_path / "Research"
     (folder / "memory").mkdir(parents=True)
-    (folder / ".ra-trace.log").write_text(
-        f"x ET\tsession-start\t\t{int(time.time())}\nx ET\tmessage\thello\t{int(time.time())}\n")
+    now = tw.et(time.time())
+    (folder / "trial-markers.md").write_text(
+        f"research-assistant 1.3.0-trial session-start {now} ET\n"
+        f"research-assistant 1.3.0-trial message {now} ET\n"
+        f"research-assistant 1.3.0-trial message {now} ET\n")       # copied twice: counted once
     (folder / "memory" / "INDEX.md").write_text("# Subjects\n")
     w.poll()
     (folder / "memory" / "INDEX.md").write_text("# Subjects\n- Caprolace\n")
@@ -203,19 +221,23 @@ def test_watch_waits_for_the_folder_then_sees_files_versions_and_trace(tmp_path)
     kinds = [(e["type"], e.get("kind") or e.get("action")) for e in w.events]
     assert sorted(kinds) == sorted([("trace", "session-start"), ("trace", "message"),
                                     ("file", "created"), ("file", "changed")])
-    assert all(e.get("path") != ".ra-trace.log" for e in w.events)
+    assert all(e.get("path") != "trial-markers.md" for e in w.events)
     v = w.version(2)
     assert v["content"] == "# Subjects\n- Caprolace\n" and "+- Caprolace" in v["diff"]
     assert w.version(1)["note"] == "new file"
     assert (tmp_path / "out/versions/0001-memory__INDEX.md").read_text() == "# Subjects\n"
-    assert w.state()["banner"]["color"] == "green"
+    assert w.state()["banner"] == {"color": "green", "text": "hooks ran in Claude Desktop: 1 session start, "
+                                   "1 message, plugin 1.3.0-trial"}
 
 
 def test_watch_red_banner_deleted_file_and_static_page(tmp_path):
     w = make_watch(tmp_path)
     folder = tmp_path / "Research"
-    folder.mkdir()
+    (folder / "memory").mkdir(parents=True)
     (folder / "CLAUDE.md").write_text("notes\n")
+    w.poll()
+    assert w.state()["banner"] == {"color": "grey", "text": tw.GREY_TEXT}
+    (folder / "memory/INDEX.md").write_text("# Subjects\n")
     (folder / "article.pdf").write_bytes(b"%PDF\xff\xfe\x00")
     w.poll()
     (folder / "CLAUDE.md").unlink()
@@ -228,7 +250,7 @@ def test_watch_red_banner_deleted_file_and_static_page(tmp_path):
     text = page.read_text()
     assert page.name == "timeline.html" and tw.RED_TEXT in text and "/*STATIC*/null" not in text
     lines = (tmp_path / "out/timeline.jsonl").read_text().splitlines()
-    assert len(lines) == 3 and json.loads(lines[0])["et"].endswith(" ET")
+    assert len(lines) == 4 and json.loads(lines[0])["et"].endswith(" ET")
 
 
 def test_watch_reads_the_usage_file_without_changing_it(tmp_path):
@@ -264,6 +286,14 @@ def test_trial_zip_is_the_shipped_plugin_plus_the_trace(tmp_path):
                          input=json.dumps({"prompt": prompt}), capture_output=True, text=True, env=env)
     shipped_out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/each-message.sh")], input="{}",
                                  capture_output=True, text=True, env=env)
-    assert out.stdout == shipped_out.stdout and out.stdout.startswith("[research-assistant]")
-    e = tw.parse_trace_line((folder / ".ra-trace.log").read_text(), 0.0)
-    assert e["kind"] == "message" and e["text"] == prompt[:60] and abs(e["t"] - time.time()) < 60
+    first, second, rest = out.stdout.split("\n", 2)
+    e = tw.parse_marker_line(first, time.time())
+    assert first == f"research-assistant {man_b['version']} message {e['stamp']}"
+    assert e["kind"] == "message" and abs(e["t"] - time.time()) < 60       # Eastern, now
+    assert "trial-markers.md" in second and "file tool" in second
+    assert rest == shipped_out.stdout and rest.startswith("[research-assistant]")
+    assert not (folder / ".ra-trace.log").exists() and not (folder / "trial-markers.md").exists()
+    (folder / ".git").mkdir()                    # a coding session's folder: no marker
+    out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/trace.sh"), "message", "each-message.sh"],
+                         input="{}", capture_output=True, text=True, env=env)
+    assert out.stdout == shipped_out.stdout

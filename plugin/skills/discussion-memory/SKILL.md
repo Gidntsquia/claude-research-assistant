@@ -3,6 +3,8 @@ name: discussion-memory
 description: How to talk articles over with the professor and how to remember. Use in every conversation in the research folder - when he discusses or questions an article, bounces an idea, returns to a subject discussed before, says "that's wrong" or "forget that" about something remembered, and after every answer on a research subject (to save it).
 ---
 
+Before answering, read `CLAUDE.md`, `memory/INDEX.md` and `memory/SETTINGS.md` in his folder, unless this task has already shown them to you.
+
 # Discussion and memory
 
 ## Discussion
@@ -51,7 +53,7 @@ A branch file holds one entry per subject, each rewritten in place, never append
 
 ### If the folder has no memory yet
 
-If `memory/INDEX.md` does not exist, create these three files before you reply, quietly, with exactly this content, and set `Conversations` to 1. An existing `CLAUDE.md` gets the template's lines at its top.
+If `memory/INDEX.md` does not exist, create these three files in his folder before you reply, quietly, with exactly this content. An existing `CLAUDE.md` gets the template's lines at its top.
 
 {{FOLDER_TEMPLATE}}
 
@@ -59,11 +61,11 @@ If `memory/INDEX.md` does not exist, create these three files before you reply, 
 
 1. No heading matches his subject: it is new. Open nothing and do not claim to remember.
 2. A match: open that heading's one file; if it is a sub-index, the one sub-heading that fits. At most three files, one per level. Never read through `memory/` as a whole.
-3. Say when you last discussed it and what was said (the date, his view, yours), then add one new angle.
+3. Say when you last discussed it and what was said (the date, his view, yours), then add a new angle when it helps.
 
-### Saving: with each answer, one branch
+### How a save is written: one branch
 
-Every answer on a research subject is saved unasked, since sessions end without warning: write the save, then give the answer as the last thing in your turn, with no line about notes or files.
+When to save: `CLAUDE.md`. How:
 
 1. Rewrite the subject's entry in its one branch file (date, both positions, articles, settled, open angles) and that heading's index line. Nothing else is touched.
 2. A new subject goes under an existing heading that covers it; otherwise it gets a new index line and branch file.

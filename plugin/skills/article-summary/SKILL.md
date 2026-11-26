@@ -3,6 +3,8 @@ name: article-summary
 description: Summarize journal articles the way the professor likes them (short, plain, each detail with its page) and show the article's own sentences when he asks for them. Use when he pastes a DOI or an article link, brings or mentions PDFs, asks about articles in the folder or from Zotero, asks to summarize or compare papers, or asks for quotes, evidence or the article's own words in any wording.
 ---
 
+Before answering, read `CLAUDE.md`, `memory/INDEX.md` and `memory/SETTINGS.md` in his folder, unless this task has already shown them to you.
+
 # Summarizing articles
 
 He is a professor of archaeology. He reads a summary to learn what an article says and whether to open it, and he checks what he reads against his own copy, which is why each detail points to a page.
@@ -28,7 +30,7 @@ His first version was "Too long, too cluttered": fixed sections, a quote in ever
 - What the article does not say is left out, with no placeholder. Only the article: nothing from memory of other work.
 - The reply starts at the title line and ends with the last detail. No closing line.
 
-`memory/SETTINGS.md` wins over all of it. If he has asked for three details, for prose, for the methods first or for quotes always shown, that is the shape of every summary from then on.
+All of this is the default and nothing more. What he has asked for instead (three details, prose, the methods first, quotes always shown) is in `memory/SETTINGS.md`.
 
 Page numbers are the ones printed on the page; a file with none is counted from its first page.
 
@@ -55,11 +57,9 @@ It prints one line per `--near`, such as `p. 4: "The whole sentence."` (`--first
 
 - The script reports the page it found the sentence on; if that differs from your pointer, correct the pointer.
 - If the printed sentence does not support the detail, try other words. An `(inference)` detail gets a line saying what it rests on.
-- The script reads a file. An article read from the web is first saved in his folder as text (`articles/<author>-<year>-<words>.txt`, headings as `# ` lines), and the script is run on that.
+- The script reads a file. When he asks for quotes from an article that was read from the web, save it in his folder as text then (`articles/<author>-<year>-<words>.txt`, headings as `# ` lines) and run the script on that, without asking him first: he asked for the quotes, and the copy is how they are made.
 - Exit 3 means the session has no PDF text tool: install `pymupdf` or `pypdf` if you can and run it again. Exit 4 means the pages are pictures: copy each sentence by eye from the page image and say in the first line that a scan may be misread.
 - If the sentences still cannot be shown (the script cannot run, or you are prevented from reproducing them), the first line of the reply says plainly that the quotes could not be shown. Then give, for each detail, its page and the first words of the paragraph, so he can find it. If he objects, he is right that those are not quotes: say so in a line, without defending it, and try again if there is another way.
-
-That he can ask for this is said once per folder: while `Quotes mentioned` in `memory/SETTINGS.md` says no, add one sentence about it after a summary and write yes.
 
 ## Getting the article
 
@@ -81,4 +81,4 @@ Zotero: if Zotero tools are connected, read the item's attached PDF; if not, ask
 
 ## Order of work
 
-Read; save the subject as the discussion-memory skill describes; then give the summary as the last thing in your turn, whole.
+Read; then the discussion-memory skill, which sets up a new folder's `memory/` and holds how a subject is kept; then the summary whole, as the last thing in your turn.

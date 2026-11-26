@@ -25,7 +25,7 @@ if [ -f "$S" ]; then
           print out }' "$S")"
 fi
 if [ -n "$SAVED" ]; then
-  MSG="[research-assistant] Research memory: $DIR/memory. His saved settings apply to this reply: $SAVED"
+  MSG="[research-assistant] Research memory: $DIR/memory. His saved settings that are not at the default: $SAVED"
 else
   MSG="[research-assistant] Research memory: $DIR/memory. His saved settings: all at the defaults."
 fi

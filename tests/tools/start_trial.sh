@@ -1,5 +1,5 @@
 #!/bin/sh
-# The one command for the live trial in real Claude Desktop Cowork.
+# The one command for the live trial in real Claude Desktop.
 #
 #   tests/tools/start_trial.sh
 #
@@ -26,6 +26,7 @@ cd "$REPO"
 uv run build_plugin.py --trial | head -1
 cp "$REPO/dist/research-assistant-trial.zip" "$DOWNLOADS/research-assistant-plugin.zip"
 echo "copied the trial zip to $DOWNLOADS/research-assistant-plugin.zip"
+echo "first, in Claude Desktop: Plugins, then Uninstall every Research assistant entry (the setup page's step 1)"
 
 trap : INT TERM
 uv run tests/tools/trial_watch.py "$FOLDER" --port "$PORT" \

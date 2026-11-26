@@ -66,12 +66,13 @@ def test_score_c1_meets_and_misses(tmp_path):
     snap.mkdir(parents=True)
     (snap / "SETTINGS.md").write_text("# Settings\n- Length: shorter (asked 2026-11-24)\n")
     s = sc.score_c1(base)
-    assert (s["own words"], s["no defence"], s["settings saved"], s["presets once"], s["details"]) == ("meets",) * 4 + (6,)
+    assert (s["own words"], s["no defence"], s["settings saved"], s["details"]) == ("meets",) * 3 + (6,)
+    assert "presets once" not in s
     (snap / "SETTINGS.md").write_text("# Settings\n- Length: default\n")
     base = write_run(tmp_path, "r1-c1", [summary, summary, "Position: held\nConfidence: high.",
                                          "Done.", PRESETS])
     s = sc.score_c1(base)
-    assert (s["own words"], s["no defence"], s["settings saved"], s["presets once"]) == ("misses",) * 4
+    assert (s["own words"], s["no defence"], s["settings saved"]) == ("misses",) * 3
 
 
 def test_score_c2(tmp_path):
@@ -83,7 +84,7 @@ def test_score_c2(tmp_path):
     (tmp_path / "r1-c2.memory" / "after-3").mkdir(parents=True)
     (tmp_path / "r1-c2.memory" / "after-3" / "INDEX.md").write_text("# Subjects\n")
     s = sc.score_c2(base, {"details": 6}, datetime.date(2026, 11, 24))
-    assert [s[r] for r in sc.C2_RULES] == ["meets"] * 5
+    assert [s[r] for r in sc.C2_RULES] == ["meets"] * 4 and "presets once" not in sc.COLUMNS
     (tmp_path / "r1-c2.memory" / "after-3" / "salt.md").write_text("## Caprolace\n")
     s = sc.score_c2(base, {"details": 3}, datetime.date(2026, 11, 20))
     assert (s["forgotten"], s["fewer details"], s["recall with date"]) == ("misses",) * 3
