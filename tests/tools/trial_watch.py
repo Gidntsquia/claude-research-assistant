@@ -2,14 +2,14 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Watch the folder of a live Cowork trial and serve a page that shows what the plugin does.
+"""Watch the folder of a live Claude Desktop trial and serve a page that shows what the plugin does.
 
     uv run tests/tools/trial_watch.py FOLDER [--port 8765] [--out DIR] [--usage-file FILE]
                                              [--page /card=FILE ...]
 
 Polls FOLDER once a second (it may not exist yet: the guide's part 2 creates it). Shows one
-timeline row per marker line in FOLDER/trial-markers.md (printed by the trial zip's hooks and
-copied there by Claude with its file tool) and per file created, changed or deleted, with time per reply and usage per message. Every file version is
+timeline row per file created, changed or deleted and per message ("Sent" click on the page),
+with time per reply and usage per message. Every file version is
 kept under tests/runs/trial/<YYYY-MM-DD-HHMM>/ with timeline.jsonl; Ctrl-C writes timeline.html
 there. Standard library only. Reads the app's usage file, writes nothing outside --out.
 Why it works this way: research/live-trial.md.
@@ -30,14 +30,12 @@ from zoneinfo import ZoneInfo
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 ET = ZoneInfo("America/New_York")
-MARKERS_NAME = "trial-markers.md"
-SKIP_NAMES = {MARKERS_NAME, ".ra-trace.log", ".DS_Store"}
-MARKER_RE = re.compile(r"research-assistant (\S+) (session-start|message) (\d\d):(\d\d):(\d\d) ET")
+SKIP_NAMES = {".DS_Store"}
 USAGE_FILE = pathlib.Path.home() / "Library/Application Support/Claude/plan-usage-history.json"
 PRO_FACTOR = 5          # Jaxon is on Max 5x, the professor on Pro
 SHOWN_BYTES = 200_000   # most of a file version the page shows
 DOI_RE = re.compile(r"doi\.org/\S+|\b10\.\d{4,9}/\S+", re.I)
-RED_TEXT = "hooks did not reach Claude: remove them"
+GREEN_TEXT = "the assistant has written its memory files"
 GREY_TEXT = "no chat yet"
 
 
@@ -45,21 +43,6 @@ GREY_TEXT = "no chat yet"
 
 def et(t: float, fmt: str = "%H:%M:%S") -> str:
     return datetime.datetime.fromtimestamp(t, ET).strftime(fmt)
-
-
-def parse_marker_line(line: str, seen_at: float) -> dict | None:
-    """'research-assistant <version> <session-start|message> <HH:MM:SS ET>' anywhere in a line
-    of trial-markers.md -> event, or None. The time is the marker's own (today, Eastern) when
-    that is within 15 minutes before the line was seen, else the time it was seen."""
-    m = MARKER_RE.search(line)
-    if not m:
-        return None
-    seen = datetime.datetime.fromtimestamp(seen_at, ET)
-    own = seen.replace(hour=int(m[3]) % 24, minute=int(m[4]) % 60, second=int(m[5]) % 60,
-                       microsecond=0).timestamp()
-    t = own if 0 <= seen_at - own <= 900 else seen_at
-    return {"type": "trace", "kind": m[2], "version": m[1], "text": "", "t": t,
-            "stamp": f"{m[3]}:{m[4]}:{m[5]} ET"}
 
 
 def read_samples(data) -> list[dict]:
@@ -98,27 +81,15 @@ def change(before, after):
 
 
 def banner(events: list[dict]) -> dict:
-    """From the marker lines of trial-markers.md alone: green with any; red when the memory
-    files were written and there is none; grey before that."""
-    marks = [e for e in events if e["type"] == "trace"]
-    starts = sum(1 for e in marks if e["kind"] == "session-start")
-    msgs = sum(1 for e in marks if e["kind"] == "message")
-    if marks:
-        versions = sorted({e.get("version", "") for e in marks} - {""})
-        return {"color": "green", "text": f"hooks ran in Claude Desktop: {starts} session start"
-                f"{'' if starts == 1 else 's'}, {msgs} message{'' if msgs == 1 else 's'}, "
-                f"plugin {' and '.join(versions) or 'unknown'}"}
+    """Green once a file under memory/ has been written; grey before that."""
     if any(e["type"] == "file" and e["path"].startswith("memory/") and e["action"] != "deleted"
            for e in events):
-        return {"color": "red", "text": RED_TEXT}
+        return {"color": "green", "text": GREEN_TEXT}
     return {"color": "grey", "text": GREY_TEXT}
 
 
 def message_events(events: list[dict]) -> list[dict]:
-    """Message starts: the hooks' marker lines; with none of those, clicks on "Sent"."""
-    traced = [e for e in events if e["type"] == "trace" and e["kind"] == "message"]
-    if traced:
-        return traced
+    """Message starts: clicks on "Sent"."""
     return [e for e in events if e["type"] == "mark" and e["kind"] == "sent"]
 
 
@@ -196,7 +167,6 @@ class Watch:
         self.events: list[dict] = []
         self.versions: list[dict] = []
         self.known: dict[str, dict] = {}
-        self.markers_seen: set[str] = set()
         self.samples: list[dict] = []
         self.usage_sig = None
         (out / "versions").mkdir(parents=True, exist_ok=True)
@@ -215,7 +185,6 @@ class Watch:
         self.read_usage()
         if not self.folder.is_dir():
             return
-        self.read_markers()
         seen = set()
         for p in sorted(self.folder.rglob("*")):
             if p.name in SKIP_NAMES or not p.is_file():
@@ -256,22 +225,6 @@ class Watch:
             # the time the file was written, unless the clock says that is in the future
             self.add({"type": "file", "action": "changed" if old else "created", "path": rel,
                       "size": len(data), "version": n, "t": min(mtime, time.time())})
-
-    def read_markers(self) -> None:
-        """Each new marker line of FOLDER/trial-markers.md becomes one event (a line copied
-        twice counts once)."""
-        try:
-            text = (self.folder / MARKERS_NAME).read_text("utf-8", "replace")
-        except OSError:
-            return
-        for line in text.splitlines():
-            ev = parse_marker_line(line, time.time())
-            if not ev:
-                continue
-            key = f"{ev['version']} {ev['kind']} {ev['stamp']}"
-            if key not in self.markers_seen:
-                self.markers_seen.add(key)
-                self.add(ev)
 
     def read_usage(self) -> None:
         try:
@@ -444,7 +397,7 @@ PAGE = r"""<!doctype html>
     <input type="text" id="senttext" placeholder="what you sent (optional; paste the DOI for per-article totals)">
     <button id="sent">Sent</button>
     <button id="done">Reply done</button>
-    <span class="sub">The banner is read from trial-markers.md in the folder. "Sent" is only needed while it is not green. "Reply done" makes the seconds exact.</span>
+    <span class="sub">Click "Sent" as you send each message; "Reply done" when the answer has finished makes the seconds exact.</span>
   </div>
 </header>
 <main>
@@ -490,11 +443,9 @@ function rowHtml(r) {
   let kind = '', what = '';
   if (r.message) {
     tr.className = 'message'; kind = 'message';
-    what = esc(r.text || (r.type === 'trace' ? 'hook ran, plugin ' + (r.version || '') : '(no text)')) + (r.type === 'mark' ? ' <span class="meta">("Sent" click)</span>' : '')
+    what = esc(r.text || '(no text)') + ' <span class="meta">("Sent" click)</span>'
       + '<div class="meta" data-part="secs"></div><div class="meta" data-part="usage"></div>'
       + '<div class="meta" data-part="boxes"></div>';
-  } else if (r.type === 'trace') {
-    tr.className = 'session'; kind = 'session start'; what = 'hook ran, plugin ' + esc(r.version || '');
   } else if (r.type === 'file') {
     tr.className = 'file'; kind = r.action;
     what = '<span class="path">' + esc(r.path) + '</span> <span class="meta">' +

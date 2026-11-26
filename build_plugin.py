@@ -5,17 +5,13 @@
 """Assemble the plugin from plugin/ and zip it.
 
     uv run build_plugin.py
-    uv run build_plugin.py --trial     # the live-trial zip; the shipped zip is not touched
 
-Source: plugin/ (skills/, hooks/, manifest, folder-template/). plugin/merge-in/ is not part of
+Source: plugin/ (skills/, manifest, folder-template/). plugin/merge-in/ is not part of
 the build. Output:
   build/research-assistant/                  (unzipped, for --plugin-dir; gitignored)
   dist/research-assistant-plugin.zip
 
---trial builds the same plugin plus tests/trial/trace.sh, which hooks.json then calls in front
-of each shipped hook script to append one line per hook run to <folder>/.ra-trace.log
-(research/live-trial.md). Output: build/research-assistant-trial/ and
-dist/research-assistant-trial.zip; the manifest keeps the name, version suffixed -trial.
+The plugin has no hooks (research/live-trial.md, "The trial's answer").
 """
 import json
 import pathlib
@@ -30,9 +26,6 @@ BUILD = HERE / "build" / "research-assistant"
 ZIP = HERE / "dist" / "research-assistant-plugin.zip"
 REQUIRED = [
     ".claude-plugin/plugin.json",
-    "hooks/hooks.json",
-    "hooks/session-start.sh",
-    "hooks/each-message.sh",
     "skills/article-summary/SKILL.md",
     "skills/article-summary/scripts/quotes.py",
     "skills/discussion-memory/SKILL.md",
@@ -43,34 +36,7 @@ REQUIRED = [
 ]
 
 
-TRIAL_BUILD = HERE / "build" / "research-assistant-trial"
-TRIAL_ZIP = HERE / "dist" / "research-assistant-trial.zip"
-TRACE = HERE / "tests" / "trial" / "trace.sh"
-TRIAL_HOOKS = {"SessionStart": ("session-start", "session-start.sh"),
-               "UserPromptSubmit": ("message", "each-message.sh")}
-
-
-def add_trace(build: pathlib.Path) -> None:
-    """Put the trace wrapper in front of each shipped hook; the hook scripts stay as shipped."""
-    shutil.copy(TRACE, build / "hooks" / "trace.sh")
-    hooks_file = build / "hooks" / "hooks.json"
-    hooks = json.loads(hooks_file.read_text())
-    for event, (kind, script) in TRIAL_HOOKS.items():
-        for group in hooks["hooks"][event]:
-            for h in group["hooks"]:
-                if script not in h["command"]:
-                    raise SystemExit(f"hooks.json: {event} does not call {script}")
-                h["command"] = f'sh "${{CLAUDE_PLUGIN_ROOT}}/hooks/trace.sh" {kind} {script}'
-    hooks_file.write_text(json.dumps(hooks, indent=2) + "\n")
-    manifest_file = build / ".claude-plugin" / "plugin.json"
-    manifest = json.loads(manifest_file.read_text())
-    manifest["version"] += "-trial"
-    manifest_file.write_text(json.dumps(manifest, indent=2) + "\n")
-
-
 def main() -> int:
-    trial = "--trial" in sys.argv[1:]
-    BUILD, ZIP = (TRIAL_BUILD, TRIAL_ZIP) if trial else (globals()["BUILD"], globals()["ZIP"])
     if BUILD.exists():
         shutil.rmtree(BUILD)
     shutil.copytree(PLUGIN, BUILD,
@@ -90,10 +56,7 @@ def main() -> int:
         print("discussion-memory/SKILL.md has no {{FOLDER_TEMPLATE}} marker")
         return 1
     skill.write_text(text.replace("{{FOLDER_TEMPLATE}}", block))
-    if trial:
-        add_trace(BUILD)
-    missing = [r for r in REQUIRED + (["hooks/trace.sh"] if trial else [])
-               if not (BUILD / r).is_file()]
+    missing = [r for r in REQUIRED if not (BUILD / r).is_file()]
     if missing:
         print("missing from build:", missing)
         return 1

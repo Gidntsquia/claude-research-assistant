@@ -3,7 +3,7 @@
 #
 #   tests/tools/start_trial.sh
 #
-# Builds the trial zip, copies it to ~/Downloads/research-assistant-plugin.zip (the name the
+# Builds the plugin zip, copies it to ~/Downloads/research-assistant-plugin.zip (the name the
 # guide uses), starts the watcher on ~/Documents/Research and opens the guide PDF, the trial
 # card and the live page in Firefox. Then you follow the guide's twelve clicks in Claude Desktop;
 # nothing here drives the app. Ctrl-C stops the watcher and writes timeline.html.
@@ -23,9 +23,9 @@ if [ -e "$FOLDER" ]; then
 fi
 
 cd "$REPO"
-uv run build_plugin.py --trial | head -1
-cp "$REPO/dist/research-assistant-trial.zip" "$DOWNLOADS/research-assistant-plugin.zip"
-echo "copied the trial zip to $DOWNLOADS/research-assistant-plugin.zip"
+uv run build_plugin.py | head -1
+cp "$REPO/dist/research-assistant-plugin.zip" "$DOWNLOADS/research-assistant-plugin.zip"
+echo "copied the plugin zip to $DOWNLOADS/research-assistant-plugin.zip"
 echo "first, in Claude Desktop: Plugins, then Uninstall every Research assistant entry (the setup page's step 1)"
 
 trap : INT TERM
@@ -62,4 +62,4 @@ echo "Now open Claude Desktop and follow the guide. Waiting; Ctrl-C when the tri
 wait "$WATCHER" || true
 kill -INT "$WATCHER" 2>/dev/null || true
 wait "$WATCHER" 2>/dev/null || true
-echo "to remove the trial plugin: in Claude Desktop click Plugins in the left sidebar, pick Research assistant and click Uninstall (then delete $DOWNLOADS/research-assistant-plugin.zip)"
+echo "to remove the plugin: in Claude Desktop click Plugins in the left sidebar, pick Research assistant and click Uninstall (then delete $DOWNLOADS/research-assistant-plugin.zip)"

@@ -1,4 +1,4 @@
-"""Unit tests for the live-trial watcher and the trial build (no claude launch, no network)."""
+"""Unit tests for the live-trial watcher (no claude launch, no network)."""
 import json
 import os
 import pathlib
@@ -19,7 +19,7 @@ def ev(i, t, **kw):
 
 
 def msg(i, t, text=""):
-    return ev(i, t, type="trace", kind="message", text=text)
+    return ev(i, t, type="mark", kind="sent", text=text)
 
 
 def write(i, t, path="memory/INDEX.md"):
@@ -34,50 +34,16 @@ def messages(rows):
     return [r for r in rows if "message" in r]
 
 
-# ---- marker lines ----
-
-def seen(h, m, s):
-    import datetime
-    return datetime.datetime(2026, 11, 25, h, m, s, tzinfo=tw.ET).timestamp()
-
-
-def test_marker_line_gives_kind_version_and_its_own_time():
-    e = tw.parse_marker_line("research-assistant 1.3.0-trial message 12:09:25 ET\n", seen(12, 10, 0))
-    assert (e["kind"], e["version"], e["t"]) == ("message", "1.3.0-trial", seen(12, 9, 25))
-
-
-def test_marker_line_found_inside_a_list_item_or_code():
-    e = tw.parse_marker_line("- `research-assistant 1.3.0-trial session-start 12:09:25 ET`", seen(12, 9, 30))
-    assert e["kind"] == "session-start" and e["version"] == "1.3.0-trial"
-
-
-def test_marker_time_far_from_the_clock_takes_the_time_seen():
-    """A VM without Eastern time prints another hour; the row is then placed when it was seen."""
-    e = tw.parse_marker_line("research-assistant 1.3.0-trial message 17:09:25 ET", seen(12, 10, 0))
-    assert e["t"] == seen(12, 10, 0)
-
-
-def test_other_lines_are_not_marker_lines():
-    assert tw.parse_marker_line("hello", 1.0) is None
-    assert tw.parse_marker_line("research-assistant 1.3.0 unknown 12:00:00 ET", 1.0) is None
-    assert tw.parse_marker_line("2026-11-25 12:09:25 ET\tmessage\tSummarise this\t1795626565", 1.0) is None
-
-
 def test_times_are_eastern():
     assert tw.et(1795626565, "%Y-%m-%d %H:%M:%S") == "2026-11-25 12:09:25"
 
 
-# ---- banner (R4) ----
+# ---- banner ----
 
-def test_banner_green_counts_session_starts_and_messages_and_names_the_version():
-    events = [ev(1, 0, type="trace", kind="session-start", text="", version="1.3.0-trial"),
-              dict(msg(2, 1), version="1.3.0-trial"), dict(msg(3, 9), version="1.3.0-trial"), write(4, 10)]
-    assert tw.banner(events) == {"color": "green", "text": "hooks ran in Claude Desktop: 1 session start, "
-                                 "2 messages, plugin 1.3.0-trial"}
-
-
-def test_banner_red_when_memory_files_are_written_and_no_marker():
-    assert tw.banner([write(1, 3)]) == {"color": "red", "text": "hooks did not reach Claude: remove them"}
+def test_banner_green_once_memory_files_are_written_and_says_nothing_of_hooks():
+    b = tw.banner([write(1, 3)])
+    assert b == {"color": "green", "text": "the assistant has written its memory files"}
+    assert "hook" not in tw.PAGE.lower() and "marker" not in tw.PAGE.lower()
 
 
 def test_banner_grey_for_files_that_are_not_memory():
@@ -90,7 +56,7 @@ def test_banner_grey_before_anything():
 
 # ---- seconds to reply (R6) ----
 
-def test_seconds_from_trace_line_to_reply_done_click():
+def test_seconds_from_sent_click_to_reply_done_click():
     events = [msg(1, 0), write(2, 20), ev(3, 42, type="mark", kind="done", text=""), msg(4, 100)]
     m = messages(tw.build_rows(events, [], T0 + 200))[0]["message"]
     assert (m["secs"], m["approx"]) == (42, False)
@@ -107,12 +73,10 @@ def test_seconds_unknown_without_a_write_or_click():
     assert messages(tw.build_rows([msg(1, 0)], [], T0 + 50))[0]["message"]["secs"] is None
 
 
-def test_sent_click_starts_a_message_only_when_no_hook_lines():
+def test_sent_click_starts_a_message():
     sent = ev(1, 0, type="mark", kind="sent", text="hi")
     rows = tw.build_rows([sent, ev(2, 12, type="mark", kind="done", text="")], [], T0 + 50)
     assert messages(rows)[0]["message"]["secs"] == 12
-    rows = tw.build_rows([sent, msg(2, 1, "hi")], [], T0 + 50)
-    assert [r["id"] for r in messages(rows)] == [2] and all(r["id"] != 1 for r in rows)
 
 
 # ---- usage, form 1: the usage file has numeric fh (R7, R8) ----
@@ -202,35 +166,27 @@ def make_watch(tmp_path, usage=None):
     return tw.Watch(tmp_path / "Research", tmp_path / "out", usage_file)
 
 
-def test_watch_waits_for_the_folder_then_sees_files_versions_and_trace(tmp_path):
+def test_watch_waits_for_the_folder_then_sees_files_and_versions(tmp_path):
     w = make_watch(tmp_path)
     w.poll()
     assert w.events == [] and w.state()["folder_exists"] is False
     folder = tmp_path / "Research"
     (folder / "memory").mkdir(parents=True)
-    now = tw.et(time.time())
-    (folder / "trial-markers.md").write_text(
-        f"research-assistant 1.3.0-trial session-start {now} ET\n"
-        f"research-assistant 1.3.0-trial message {now} ET\n"
-        f"research-assistant 1.3.0-trial message {now} ET\n")       # copied twice: counted once
     (folder / "memory" / "INDEX.md").write_text("# Subjects\n")
     w.poll()
     (folder / "memory" / "INDEX.md").write_text("# Subjects\n- Caprolace\n")
     w.poll()
     w.poll()
     kinds = [(e["type"], e.get("kind") or e.get("action")) for e in w.events]
-    assert sorted(kinds) == sorted([("trace", "session-start"), ("trace", "message"),
-                                    ("file", "created"), ("file", "changed")])
-    assert all(e.get("path") != "trial-markers.md" for e in w.events)
+    assert kinds == [("file", "created"), ("file", "changed")]
     v = w.version(2)
     assert v["content"] == "# Subjects\n- Caprolace\n" and "+- Caprolace" in v["diff"]
     assert w.version(1)["note"] == "new file"
     assert (tmp_path / "out/versions/0001-memory__INDEX.md").read_text() == "# Subjects\n"
-    assert w.state()["banner"] == {"color": "green", "text": "hooks ran in Claude Desktop: 1 session start, "
-                                   "1 message, plugin 1.3.0-trial"}
+    assert w.state()["banner"] == {"color": "green", "text": tw.GREEN_TEXT}
 
 
-def test_watch_red_banner_deleted_file_and_static_page(tmp_path):
+def test_watch_banner_deleted_file_and_static_page(tmp_path):
     w = make_watch(tmp_path)
     folder = tmp_path / "Research"
     (folder / "memory").mkdir(parents=True)
@@ -243,12 +199,12 @@ def test_watch_red_banner_deleted_file_and_static_page(tmp_path):
     (folder / "CLAUDE.md").unlink()
     w.poll()
     s = w.state()
-    assert s["banner"] == {"color": "red", "text": tw.RED_TEXT}
+    assert s["banner"] == {"color": "green", "text": tw.GREEN_TEXT}
     assert [r["action"] for r in s["rows"] if r["type"] == "file"].count("deleted") == 1
     assert "not text" in w.version(2 if w.versions[1]["path"] == "article.pdf" else 1)["note"]
     page = w.write_static()
     text = page.read_text()
-    assert page.name == "timeline.html" and tw.RED_TEXT in text and "/*STATIC*/null" not in text
+    assert page.name == "timeline.html" and tw.GREEN_TEXT in text and "/*STATIC*/null" not in text
     lines = (tmp_path / "out/timeline.jsonl").read_text().splitlines()
     assert len(lines) == 4 and json.loads(lines[0])["et"].endswith(" ET")
 
@@ -261,39 +217,12 @@ def test_watch_reads_the_usage_file_without_changing_it(tmp_path):
     assert w.state()["form"] == "file" and (tmp_path / "usage.json").read_bytes() == before
 
 
-# ---- the trial zip (R1, R2) ----
+# ---- the zip the trial uploads ----
 
-def test_trial_zip_is_the_shipped_plugin_plus_the_trace(tmp_path):
-    shipped = REPO / "dist/research-assistant-plugin.zip"
-    before = shipped.read_bytes()
-    subprocess.run([sys.executable, str(REPO / "build_plugin.py"), "--trial"], check=True,
-                   capture_output=True)
-    assert shipped.read_bytes() == before
-    a, b = zipfile.ZipFile(shipped), zipfile.ZipFile(REPO / "dist/research-assistant-trial.zip")
-    assert set(b.namelist()) - set(a.namelist()) == {"hooks/trace.sh"}
-    changed = {n for n in a.namelist() if a.read(n) != b.read(n)}
-    assert changed == {"hooks/hooks.json", ".claude-plugin/plugin.json"}
-    man_a, man_b = (json.loads(z.read(".claude-plugin/plugin.json")) for z in (a, b))
-    assert man_b["name"] == man_a["name"] and man_b["version"] == man_a["version"] + "-trial"
-    assert b.read("hooks/trace.sh") == (REPO / "tests/trial/trace.sh").read_bytes()
-    b.extractall(tmp_path / "plugin")
-    folder = tmp_path / "folder"
-    (folder / "memory").mkdir(parents=True)      # the hook prints only in a research folder
-    (folder / "memory/INDEX.md").write_text("# Subjects\n")
-    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(tmp_path / "plugin"), CLAUDE_PROJECT_DIR=str(folder))
-    prompt = "Summarise https://doi.org/10.1371/journal.pone.0224435 " + "x" * 80
-    out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/trace.sh"), "message", "each-message.sh"],
-                         input=json.dumps({"prompt": prompt}), capture_output=True, text=True, env=env)
-    shipped_out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/each-message.sh")], input="{}",
-                                 capture_output=True, text=True, env=env)
-    first, second, rest = out.stdout.split("\n", 2)
-    e = tw.parse_marker_line(first, time.time())
-    assert first == f"research-assistant {man_b['version']} message {e['stamp']}"
-    assert e["kind"] == "message" and abs(e["t"] - time.time()) < 60       # Eastern, now
-    assert "trial-markers.md" in second and "file tool" in second
-    assert rest == shipped_out.stdout and rest.startswith("[research-assistant]")
-    assert not (folder / ".ra-trace.log").exists() and not (folder / "trial-markers.md").exists()
-    (folder / ".git").mkdir()                    # a coding session's folder: no marker
-    out = subprocess.run(["sh", str(tmp_path / "plugin/hooks/trace.sh"), "message", "each-message.sh"],
-                         input="{}", capture_output=True, text=True, env=env)
-    assert out.stdout == shipped_out.stdout
+def test_the_zip_has_no_hooks_and_there_is_no_trial_build():
+    z = zipfile.ZipFile(REPO / "dist/research-assistant-plugin.zip")
+    assert not [n for n in z.namelist() if n.startswith("hooks") or n.endswith(".sh")]
+    assert "hooks" not in json.loads(z.read(".claude-plugin/plugin.json"))
+    assert not (REPO / "plugin/hooks").exists() and not (REPO / "tests/trial").exists()
+    assert "--trial" not in (REPO / "build_plugin.py").read_text()
+    assert "--trial" not in (REPO / "tests/tools/start_trial.sh").read_text()

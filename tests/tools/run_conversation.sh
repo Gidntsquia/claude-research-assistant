@@ -24,7 +24,7 @@ if ! git -C "$REPO" diff --quiet HEAD -- plugin dist; then
   echo "plugin or dist has uncommitted changes: commit before a scored run" >&2; exit 2
 fi
 rm -rf "$REPO/build/zipcheck" && mkdir -p "$REPO/build/zipcheck" && unzip -q "$ZIP" -d "$REPO/build/zipcheck"
-for f in hooks/each-message.sh hooks/session-start.sh skills/article-summary/SKILL.md skills/settings-presets/SKILL.md folder-template/CLAUDE.md; do
+for f in .claude-plugin/plugin.json skills/article-summary/scripts/quotes.py skills/article-summary/SKILL.md skills/settings-presets/SKILL.md folder-template/CLAUDE.md; do
   cmp -s "$REPO/build/zipcheck/$f" "$REPO/plugin/$f" || { echo "the zip does not match plugin/$f: run uv run build_plugin.py" >&2; exit 2; }
 done
 case "$CONV" in
