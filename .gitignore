@@ -7,4 +7,10 @@ __pycache__/
 .venv/
 build/
 tests/tools/out/
-tests/runs/trial/*/versions/*.pdf
+
+# Written by the run and score scripts
+tests/runs/
+tests/RESULTS.md
+
+# GitHub wiki clone (its own repo)
+/wiki/

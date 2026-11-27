@@ -11,7 +11,7 @@ the build. Output:
   build/research-assistant/                  (unzipped, for --plugin-dir; gitignored)
   dist/research-assistant-plugin.zip
 
-The plugin has no hooks (research/live-trial.md, "The trial's answer").
+The plugin has no hooks: plugin hooks did not reach Claude in Claude Desktop 7.37095.0.
 """
 import json
 import pathlib

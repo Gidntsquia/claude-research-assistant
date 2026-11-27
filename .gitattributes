@@ -1,0 +1,4 @@
+# Left out of `git archive` and GitHub's "Source code" downloads
+tests/** export-ignore
+AGENTS.md export-ignore
+.gitattributes export-ignore

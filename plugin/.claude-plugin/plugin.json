@@ -2,5 +2,10 @@
   "name": "research-assistant",
   "version": "1.3.1",
   "description": "A research assistant you shape by telling it how to answer: short article summaries with page numbers, the article's own sentences when you ask, and a memory of past subjects that stays the same size however many conversations you have.",
-  "author": { "name": "Jaxon Lee" }
+  "author": {
+    "name": "Jaxon Lee"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/Gidntsquia/claude-research-assistant",
+  "homepage": "https://github.com/Gidntsquia/claude-research-assistant"
 }
