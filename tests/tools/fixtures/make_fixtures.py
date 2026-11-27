@@ -57,16 +57,12 @@ def w(name, text):
 
 
 w("clean-pdf.md", build("pdf", note="passes every rule"))
-w("clean-web.md", build("web", note="passes every rule"))
 w("clean-pdf-quotes.md", build("pdf", quotes=True, note='passes every rule, as shown after "show quotes"'))
-w("clean-web-quotes.md", build("web", quotes=True, note='passes every rule, as shown after "show quotes"'))
 
 w("fault-invented-quote.md", build("pdf", quotes=True, details=swap(2, q="the wood sample proves that forty households lived on the island"),
   note="fault: the quote under detail 3 is nowhere in the article; fails quote-match only"))
 w("fault-wrong-page.md", build("pdf", quotes=True, details=swap(4, page=12),
   note="fault: detail 5 cites p. 12, its quote is on p. 22; fails quote-match only"))
-w("fault-missing-heading.md", build("web", details=swap(3, webp='sec. "4.4 Faunal remains"'),
-  note="fault: detail 4 points to a heading the web page does not have; fails pointer only"))
 extra = [(None, "The excavation took place on two small islands in the lagoon.", 1, 'sec. "Abstract"', None),
          (None, "The lagoon lies in the Circeo National Park near Sabaudia.", 7, 'sec. "3.1 Description of the site"', None)]
 w("fault-nine-details.md", build("pdf", details=extra + D, note="fault: nine details; fails detail-count only"))

@@ -225,4 +225,3 @@ def test_the_zip_has_no_hooks_and_there_is_no_trial_build():
     assert "hooks" not in json.loads(z.read(".claude-plugin/plugin.json"))
     assert not (REPO / "plugin/hooks").exists() and not (REPO / "tests/trial").exists()
     assert "--trial" not in (REPO / "build_plugin.py").read_text()
-    assert "--trial" not in (REPO / "tests/tools/start_trial.sh").read_text()

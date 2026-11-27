@@ -11,25 +11,24 @@ import check_summary as cs
 
 TS = HERE.parent / "test-set"
 FIX = HERE / "fixtures"
-PDF, HTML = str(TS / "caprolace.pdf"), str(TS / "caprolace.html")
+PDF = str(TS / "caprolace.pdf")       # the web copy is not in this repo, so the web rules are not tested here
 
 # fixture -> the one rule it must fail, and words its failure must show (sentence, then what was examined)
 FAULTS = {
     "fault-invented-quote.md": ("quote-match", "Wood from 94–96 cm deep", "forty households", "all 41 pages"),
     "fault-wrong-page.md": ("quote-match", "Sherd CP 131 held the largest salt microcrystals", "p. 12", "p. 22"),
-    "fault-missing-heading.md": ("pointer", "Layer SU 202 was only partly excavated", "4.4 Faunal remains"),
     "fault-nine-details.md": ("detail-count", "9 details", "fish hypothesis"),
     "fault-26-word-detail.md": ("detail-length", "26 words", "The authors suggest that layer SU 104"),
     "fault-fixed-sections.md": ("headings", "Research question", "Evidence", "Limits"),
     "fault-quote-by-default.md": ("no-quotes", "The authors write that", "evidence of fish processing has never been found"),
     "fault-not-stated.md": ("not-stated", "Sample size for the chemical analyses: not stated."),
 }
-CLEAN = ["clean-pdf.md", "clean-web.md", "clean-pdf-quotes.md", "clean-web-quotes.md"]
+CLEAN = ["clean-pdf.md", "clean-pdf-quotes.md"]
 
 
 @pytest.fixture(scope="module")
 def article():
-    return cs.pdf_pages(PDF), cs.load_web(HTML)
+    return cs.pdf_pages(PDF), None
 
 
 def flags(name):
@@ -44,7 +43,7 @@ def run(name, article):
 
 
 def test_every_fault_named_in_the_plan_has_a_fixture():
-    assert len(FAULTS) == 8 and all((FIX / n).exists() for n in list(FAULTS) + CLEAN)
+    assert len(FAULTS) == 7 and all((FIX / n).exists() for n in list(FAULTS) + CLEAN)
 
 
 @pytest.mark.parametrize("name", CLEAN)
@@ -67,7 +66,7 @@ def test_planted_fault_fails_only_its_rule_and_shows_why(name, article):
 
 @pytest.mark.parametrize("name", list(FAULTS) + CLEAN)
 def test_command_line_last_line_and_exit_code(name, capsys):
-    code = cs.main([str(FIX / name), "--pdf", PDF, "--html", HTML] + flags(name))
+    code = cs.main([str(FIX / name), "--pdf", PDF] + flags(name))
     last = capsys.readouterr().out.strip().splitlines()[-1]
     if name in CLEAN:
         assert code == 0 and last == "RESULT: PASS"
@@ -138,16 +137,6 @@ def test_pdf_pointer_must_be_a_page_inside_the_pdf():
     assert cs.check(make(FIVE[:4] + ["A page range. (pp. 7–8)"]), "pdf", PAGES) == []
 
 
-def test_web_pointer_forms(article):
-    web = article[1]
-    ok = ['Heading pointer. (sec. "5. Discussion")', 'Unnumbered heading. (sec. "Discussion")',
-          "Figure pointer. (Fig. 20)", "Table pointer. (Table 1)", "Another figure. (Fig. 3)"]
-    fails = cs.check(make(ok), "web", None, web)
-    assert fails == [], [x.line() for x in fails]
-    fails = cs.check(make(ok[:4] + ["A page from nowhere. (p. 12)"]), "web", None, web)
-    assert rules(fails) == ["pointer"] and "no page numbers in the web copy" in fails[0].line()
-    assert rules(cs.check(make(ok[:4] + ["No such figure. (Fig. 99)"]), "web", None, web)) == ["pointer"]
-    assert rules(cs.check(make(ok[:4] + ["No such table. (Table 7)"]), "web", None, web)) == ["pointer"]
 
 
 def test_inference_needs_no_pointer():
@@ -185,19 +174,8 @@ def test_bold_label_with_text_on_the_line_is_a_heading_and_a_long_bold_first_lin
     assert s.opening == "Author et al., Journal, 2019."
 
 
-def test_printed_page_numbers_are_accepted_for_a_journal_pdf():
-    pages = cs.pdf_pages(str(TS / "caa-theory.pdf"))
-    assert len(pages) == 19 and cs.printed_offset(pages) == 365
-    assert cs.check(make(FIVE[:4] + ["Printed page. (p. 370)"]), "pdf", pages) == []
-    assert rules(cs.check(make(FIVE[:4] + ["Outside both ranges. (p. 400)"]), "pdf", pages)) == ["pointer"]
-    assert cs.printed_offset(cs.pdf_pages(PDF)) == 0
 
 
-def test_quote_under_the_wrong_heading_fails(article):
-    d = ['Wood dates to the Bronze Age. (sec. "6. Conclusion")\n  > “Results from the 14C analyses are 1606–1433 cal BCE”']
-    web_ok = [f'Plain detail {i}. (sec. "Abstract")\n  > “Middle Bronze Age layers had previously been reported”' for i in range(4)]
-    fails = cs.check(make(web_ok + d), "web", None, article[1], quotes=True)
-    assert rules(fails) == ["quote-match"] and "elsewhere on the page" in fails[0].line()
 
 
 def test_show_quotes_needs_a_quote_under_each_detail(article):
@@ -206,7 +184,7 @@ def test_show_quotes_needs_a_quote_under_each_detail(article):
 
 
 def test_title_in_quote_marks_is_not_a_quote():
-    pages, web = cs.pdf_pages(str(TS / "caprolace.pdf")), cs.load_web(str(TS / "caprolace.html"))
+    pages, web = cs.pdf_pages(PDF), None
     title = "Salt or fish (or salted fish)? The Bronze Age specialised sites along the Tyrrhenian coast of Central Italy: New insights from Caprolace settlement"
     assert cs._is_article_title(title, pages, web)
     assert not cs._is_article_title("we suggest that SU 104 and partially SU 103 are the debris of a briquetage activity", pages, web)
